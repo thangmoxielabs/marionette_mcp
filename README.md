@@ -6,6 +6,8 @@
 
 Marionette MCP enables AI agents (like Cursor, Claude Code, etc.) to inspect and interact with running Flutter applications. It provides a bridge between the MCP protocol and the Flutter VM service, allowing agents to see the widget tree, tap elements, enter text, scroll, and capture screenshots for automated smoke testing and interaction.
 
+https://github.com/user-attachments/assets/0f00b35b-592a-4a35-b305-a3d8e01870b3
+
 ```mermaid
 flowchart LR
     Agent[AI Agent] <-->|MCP Protocol| Server[marionette_mcp]
