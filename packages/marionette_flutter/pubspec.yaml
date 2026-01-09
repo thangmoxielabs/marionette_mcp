@@ -1,8 +1,8 @@
 name: marionette_flutter
-description: Flutter development extensions for VM service integration, providing runtime widget inspection and interaction capabilities for AI agents.
+description: Flutter extensions enabling AI agents to inspect and interact with running Flutter apps via Marionette MCP.
 version: 0.1.0
-repository: https://github.com/leancodepl/marionette
-issue_tracker: https://github.com/leancodepl/marionette/issues
+repository: https://github.com/leancodepl/marionette-mcp
+issue_tracker: https://github.com/leancodepl/marionette-mcp/issues
 
 environment:
   sdk: "^3.8.1"

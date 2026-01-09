@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:logging/logging.dart' as logging;
-import 'package:marionette_mcp_server/src/vm_service/vm_service_connector.dart';
+import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 
 /// Context for managing VM service connection and registering MCP tools.

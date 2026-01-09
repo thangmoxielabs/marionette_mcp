@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:logging/logging.dart' as logging;
-import 'package:marionette_mcp_server/src/vm_service/vm_service_context.dart';
+import 'package:marionette_mcp/src/vm_service/vm_service_context.dart';
 import 'package:mcp_dart/mcp_dart.dart';
 
 const version = '0.1.0';
@@ -41,7 +41,7 @@ void printUsage(ArgParser argParser) {
   stderr
     ..writeln('Marionette MCP Server - Flutter app interaction for AI agents')
     ..writeln()
-    ..writeln('Usage: marionette_mcp_server [options]')
+    ..writeln('Usage: marionette_mcp [options]')
     ..writeln()
     ..writeln('Options:')
     ..writeln(argParser.usage);
@@ -57,7 +57,7 @@ Future<int> main(List<String> arguments) async {
       return 0;
     }
     if (results.flag('version')) {
-      stderr.writeln('marionette_mcp_server version: $version');
+      stderr.writeln('marionette_mcp version: $version');
       return 0;
     }
 
@@ -71,7 +71,7 @@ Future<int> main(List<String> arguments) async {
     final vmService = VmServiceContext();
 
     final server = McpServer(
-      const Implementation(name: 'marionette-mcp-server', version: version),
+      const Implementation(name: 'marionette-mcp', version: version),
       options: const ServerOptions(
         capabilities: ServerCapabilities(
           tools: ServerCapabilitiesTools(),

@@ -8,7 +8,7 @@ Marionette MCP enables AI agents (like Cursor, Claude Code, etc.) to inspect and
 
 ```mermaid
 flowchart LR
-    Agent[AI Agent] <-->|MCP Protocol| Server[marionette_mcp_server]
+    Agent[AI Agent] <-->|MCP Protocol| Server[marionette_mcp]
     Server <-->|VM Service| App[Flutter App]
     subgraph app[Your Flutter App]
         App --- Binding[MarionetteBinding]
@@ -20,8 +20,8 @@ flowchart LR
 **Note: Your Flutter app must be prepared to be compatible with this MCP.**
 
 1.  **Prepare your Flutter app** - Add the `marionette_flutter` package and initialize `MarionetteBinding` in your `main.dart`.
-2.  **Install the MCP server** - Add `marionette_mcp_server` to your projects `dev_dependencies`.
-3.  **Configure your AI tool** - Add the MCP server command (`dart run marionette_mcp_server`) to your tool's configuration (Cursor, Claude, etc.).
+2.  **Install the MCP server** - Add `marionette_mcp` to your projects `dev_dependencies`.
+3.  **Configure your AI tool** - Add the MCP server command (`dart run marionette_mcp`) to your tool's configuration (Cursor, Claude, etc.).
 4.  **Run your app in debug mode** - Look for the VM service URI in the console (e.g., `ws://127.0.0.1:12345/ws`).
 5.  **Connect and interact** - Ask the AI agent to connect to your app using the URI and start interacting.
 
@@ -32,7 +32,7 @@ flowchart LR
 Run the following command in your Flutter app directory:
 
 ```bash
-dart pub add dev:marionette_mcp_server
+dart pub add dev:marionette_mcp
 ```
 
 ### 2. Add Flutter Package
@@ -111,7 +111,7 @@ Add the MCP server to your AI coding assistant's configuration.
 
 ### Cursor
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=marionette&config=eyJjb21tYW5kIjoiZGFydCBydW4gbWFyaW9uZXR0ZV9tY3Bfc2VydmVyIn0%3D)
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=marionette&config=eyJjb21tYW5kIjoiZGFydCBydW4gbWFyaW9uZXR0ZV9tY3AifQ%3D%3D)
 
 Or manually add to your project's `.cursor/mcp.json` or your global `~/.cursor/mcp.json`:
 
@@ -120,7 +120,7 @@ Or manually add to your project's `.cursor/mcp.json` or your global `~/.cursor/m
   "mcpServers": {
     "marionette": {
       "command": "dart",
-      "args": ["run", "marionette_mcp_server"]
+      "args": ["run", "marionette_mcp"]
     }
   }
 }
@@ -135,7 +135,7 @@ Open the MCP store, click “Manage MCP Servers”, then “View raw config” a
   "mcpServers": {
     "marionette": {
       "command": "dart",
-      "args": ["run", "marionette_mcp_server"]
+      "args": ["run", "marionette_mcp"]
     }
   }
 }
@@ -150,7 +150,7 @@ Add to your `~/.gemini/settings.json`:
   "mcpServers": {
     "marionette": {
       "command": "dart",
-      "args": ["run", "marionette_mcp_server"]
+      "args": ["run", "marionette_mcp"]
     }
   }
 }
@@ -161,13 +161,13 @@ Add to your `~/.gemini/settings.json`:
 For Claude Code you need to have the MCP server available globally:
 
 ```bash
-dart pub global activate marionette_mcp_server
+dart pub global activate marionette_mcp
 ```
 
 Then you can run the following command to add it:
 
 ```bash
-claude mcp add --transport stdio marionette -- marionette_mcp_server
+claude mcp add --transport stdio marionette -- marionette_mcp
 ```
 
 ## Available Tools

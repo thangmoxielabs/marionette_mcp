@@ -1,4 +1,4 @@
-name: marionette_mcp_server publish
+name: marionette_mcp publish
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish:
-    name: Publish marionette_mcp_server on pub.dev
+    name: Publish marionette_mcp on pub.dev
     runs-on: ubuntu-latest
 
     permissions:
@@ -25,4 +25,4 @@ jobs:
       - name: Publish to pub.dev
         uses: leancodepl/mobile-tools/.github/actions/pub-release@pub-release-v1
         with:
-          path: packages/marionette_mcp_server
+          path: packages/marionette_mcp
