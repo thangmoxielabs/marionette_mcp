@@ -134,7 +134,7 @@ final class VmServiceContext {
       ..registerTool(
         'tap',
         description:
-            'Simulates a tap gesture on an element in the Flutter app that matches the given criteria. You can match elements by their key (a ValueKey<String>) or by their visible text content. Only one of key or text should be provided. Requires an active connection established via connect.',
+            'Simulates a tap gesture on an element in the Flutter app that matches the given criteria. You can match elements by their key (a ValueKey<String>) or by their text content (but not accessibility!). Only one of key or text should be provided. Prefer using the key if available, as it is more reliable. Limit yourself to elements from get_interactive_elements only if you can. Requires an active connection established via connect.',
         annotations: const ToolAnnotations(
           title: 'Tap Element',
         ),
