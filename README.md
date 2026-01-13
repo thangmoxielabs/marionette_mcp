@@ -188,6 +188,7 @@ Once connected, the AI agent has access to these tools:
 | `scroll_to` | Scrolls the view until an element matching a key or text becomes visible. |
 | `get_logs` | Retrieves application logs collected since the last check. |
 | `take_screenshots` | Captures screenshots of all active views and returns them as base64 images. |
+| `hot_reload` | Performs a hot reload of the Flutter app, applying code changes without losing state. |
 
 ## Example Scenarios
 

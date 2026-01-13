@@ -365,6 +365,51 @@ final class VmServiceContext {
             );
           }
         },
+      )
+      // Hot reload
+      ..registerTool(
+        'hot_reload',
+        description:
+            'Performs a hot reload of the Flutter app. This reloads the Dart code without restarting the app, preserving the current state. Useful after making code changes to see them reflected in the running app. Requires an active connection established via connect.',
+        annotations: const ToolAnnotations(
+          title: 'Hot Reload',
+        ),
+        inputSchema: const ToolInputSchema(properties: {}),
+        callback: (args, extra) async {
+          _logger.info('Performing hot reload');
+
+          try {
+            final report = await connector.hotReload();
+
+            if (report.success ?? false) {
+              return CallToolResult(
+                content: [
+                  const TextContent(
+                    text: 'Hot reload completed successfully',
+                  ),
+                ],
+              );
+            } else {
+              return CallToolResult(
+                isError: true,
+                content: [
+                  TextContent(
+                    text:
+                        'Hot reload failed. The app may need a full restart ${jsonEncode(report.json)}.',
+                  ),
+                ],
+              );
+            }
+          } catch (err) {
+            _logger.warning('Failed to perform hot reload', err);
+            return CallToolResult(
+              isError: true,
+              content: [
+                TextContent(text: 'Hot reload failed: $err'),
+              ],
+            );
+          }
+        },
       );
   }
 

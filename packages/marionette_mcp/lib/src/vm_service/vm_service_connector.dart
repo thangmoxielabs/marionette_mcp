@@ -42,6 +42,10 @@ class VmServiceConnector {
   final logging.Logger _logger;
   VmService? _service;
   String? _isolateId;
+  StreamSubscription<Event>? _serviceEventSubscription;
+
+  final Map<String, String?> _registeredServices = {};
+  final Map<String, List<Completer<String?>>> _pendingServiceRequests = {};
 
   /// Returns true if currently connected to a VM service.
   bool get isConnected => _service != null && _isolateId != null;
@@ -59,7 +63,26 @@ class VmServiceConnector {
 
     try {
       _service = await vmServiceConnectUri(uri);
-      _logger.fine('Connected to VM service');
+      _serviceEventSubscription = _service!.onServiceEvent.listen((e) {
+        switch (e.kind) {
+          case EventKind.kServiceRegistered:
+            final serviceName = e.service!;
+            _registeredServices[serviceName] = e.method;
+            _logger.info('Service registered: $serviceName -> ${e.method}');
+            if (_pendingServiceRequests.containsKey(serviceName)) {
+              for (final completer in _pendingServiceRequests[serviceName]!) {
+                completer.complete(e.method);
+              }
+              _pendingServiceRequests.remove(serviceName);
+            }
+          case EventKind.kServiceUnregistered:
+            _registeredServices.remove(e.service!);
+            _logger.info('Service unregistered: ${e.service}');
+          default:
+            _logger.info('Service event: $e');
+        }
+      });
+      await _service!.streamListen(EventStreams.kService);
 
       _isolateId = await _findIsolateWithMarionetteExtensions();
       _logger.info('Connected to isolate: $_isolateId');
@@ -75,11 +98,44 @@ class VmServiceConnector {
   Future<void> disconnect() async {
     if (_service != null) {
       _logger.info('Disconnecting from VM service');
+      await _serviceEventSubscription?.cancel();
+      _serviceEventSubscription = null;
       await _service!.dispose();
       _service = null;
       _isolateId = null;
+      _registeredServices.clear();
+      _pendingServiceRequests.clear();
       _logger.fine('Disconnected');
     }
+  }
+
+  /// Returns a future that completes with the registered method name for the
+  /// given [serviceName].
+  ///
+  /// If the service is already registered, returns immediately.
+  /// Otherwise, waits up to [timeout] for the service to be registered.
+  /// Returns `null` if the service is not registered within the timeout.
+  Future<String?> waitForServiceRegistration(
+    String serviceName, {
+    Duration timeout = const Duration(seconds: 1),
+  }) async {
+    if (_registeredServices.containsKey(serviceName)) {
+      return _registeredServices[serviceName];
+    }
+
+    final completer = Completer<String?>();
+    _pendingServiceRequests.putIfAbsent(serviceName, () => []).add(completer);
+
+    return completer.future.timeout(
+      timeout,
+      onTimeout: () {
+        _pendingServiceRequests[serviceName]?.remove(completer);
+        if (_pendingServiceRequests[serviceName]?.isEmpty ?? false) {
+          _pendingServiceRequests.remove(serviceName);
+        }
+        return null;
+      },
+    );
   }
 
   /// Ensures that there is an active connection.
@@ -187,6 +243,38 @@ class VmServiceConnector {
   /// Throws [NotConnectedException] if not connected.
   Future<Map<String, dynamic>> takeScreenshots() {
     return _callExtension('marionette.takeScreenshots', {});
+  }
+
+  /// Performs a hot reload of the Flutter app.
+  ///
+  /// Returns information about the reload result.
+  /// Throws [NotConnectedException] if not connected.
+  Future<ReloadReport> hotReload() async {
+    _ensureConnected();
+
+    _logger.info('Performing hot reload');
+
+    try {
+      final method = await waitForServiceRegistration('reloadSources');
+      if (method == null) {
+        final report = await _service!.reloadSources(_isolateId!);
+        _logger.fine('Hot reload completed: success=${report.success}');
+        return report;
+      } else {
+        final result = await _service!.callMethod(
+          method,
+          isolateId: _isolateId!,
+        );
+        if (result.json case final json?) {
+          return ReloadReport.parse(json) ?? ReloadReport(success: false);
+        } else {
+          return ReloadReport(success: false);
+        }
+      }
+    } catch (err) {
+      _logger.severe('Hot reload failed', err);
+      rethrow;
+    }
   }
 
   /// Finds the first isolate that has the marionette extensions.
