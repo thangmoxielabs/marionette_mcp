@@ -2,11 +2,15 @@
 
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 
-**"Playwright MCP, but for Flutter apps"**
+**"Playwright MCP/Cursor Browser, but for Flutter apps"**
 
 Marionette MCP enables AI agents (like Cursor, Claude Code, etc.) to inspect and interact with running Flutter applications. It provides a bridge between the MCP protocol and the Flutter VM service, allowing agents to see the widget tree, tap elements, enter text, scroll, and capture screenshots for automated smoke testing and interaction.
 
 <https://github.com/user-attachments/assets/0f00b35b-592a-4a35-b305-a3d8e01870b3>
+
+## Marionette MCP vs Flutter MCP
+
+The official [Dart & Flutter MCP server](https://docs.flutter.dev/ai/mcp-server) focuses on **development-time** tasks: searching pub.dev, managing dependencies, analyzing code, and inspecting runtime errors. Marionette MCP is complementary - it focuses on **runtime interaction**: tapping buttons, entering text, scrolling, and taking screenshots. Use Flutter MCP to build your app, use Marionette MCP to test and interact with it.
 
 ## Quick Start
 
@@ -73,6 +77,10 @@ void main() {
 ### Custom Design System
 
 If you use custom widgets in your design system, you can configure Marionette to recognize them as interactive elements or extract text from them.
+
+**Why `isInteractiveWidget`?** A typical Flutter screen has hundreds of widgets in its tree - `Padding`, `Container`, `Column`, `SizedBox`, etc. When the AI agent calls `get_interactive_elements`, Marionette filters this down to only actionable targets: buttons, text fields, switches, sliders, etc. This gives the agent a concise, manageable list instead of an overwhelming dump of layout widgets.
+
+By default, Marionette recognizes standard Flutter widgets like `ElevatedButton`, `TextField`, and `Switch`. If your app uses custom widgets (e.g., `MyPrimaryButton` that wraps styling around a `GestureDetector`), Marionette won't know they're tappable unless you tell it. The `isInteractiveWidget` callback lets you mark your custom widget types as interactive, so they appear in the element list and can be targeted by `tap` and other tools.
 
 ```dart
 import 'package:flutter/foundation.dart';
@@ -209,29 +217,6 @@ Marionette MCP shines when used by coding agents to verify their work or explore
 2. **Connection**: The MCP server connects to your app's VM Service URL.
 3. **Interaction**: When an AI agent calls a tool (like `tap`), the MCP server translates this into a call to the corresponding VM service extension in your app.
 4. **Execution**: The Flutter app executes the action (e.g., simulates a tap gesture) and returns the result.
-
-```mermaid
-sequenceDiagram
-    participant Agent as AI Agent
-    participant MCP as MCP Server
-    participant VM as VM Service
-    participant App as Flutter App
-
-    Agent->>MCP: connect(uri)
-    MCP->>VM: Connect to ws://...
-    VM->>App: Verify marionette extensions
-    App-->>Agent: Connected
-
-    Agent->>MCP: get_interactive_elements()
-    MCP->>VM: ext.flutter.marionette.interactiveElements
-    VM->>App: Query widget tree
-    App-->>Agent: List of elements
-
-    Agent->>MCP: tap(key: "login-button")
-    MCP->>VM: ext.flutter.marionette.tap
-    VM->>App: Simulate tap gesture
-    App-->>Agent: Success
-```
 
 ## Troubleshooting
 
