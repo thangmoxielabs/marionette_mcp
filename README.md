@@ -83,6 +83,14 @@ void main() {
 }
 ```
 
+### Log Collection (`get_logs`)
+
+Marionette collects application logs via Dart's [`logging`](https://pub.dev/packages/logging) package by listening to `Logger.root.onRecord`.
+This means **`logging` is required for the MCP to be able to scrape logs**.
+
+If your app doesn't use `logging` (or doesn't emit logs via `Logger(...)`), `get_logs` will likely be empty.
+If you already use another logging solution, you may need to bridge it into `logging` for `get_logs` to work. If you'd like first-class support for another logging solution, please open an issue describing your setup and expectations.
+
 ### Custom Design System
 
 If you use custom widgets in your design system, you can configure Marionette to recognize them as interactive elements or extract text from them.
@@ -195,7 +203,7 @@ Once connected, the AI agent has access to these tools:
 | `tap` | Taps an element matching a specific key or visible text. |
 | `enter_text` | Enters text into a text field matching a key. |
 | `scroll_to` | Scrolls the view until an element matching a key or text becomes visible. |
-| `get_logs` | Retrieves application logs collected since the last check. |
+| `get_logs` | Retrieves application logs collected since the last check (**scraped from Dart `logging` / `Logger.root.onRecord`**). |
 | `take_screenshots` | Captures screenshots of all active views and returns them as base64 images. |
 | `hot_reload` | Performs a hot reload of the Flutter app, applying code changes without losing state. |
 
