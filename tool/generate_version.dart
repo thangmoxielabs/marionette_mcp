@@ -26,6 +26,15 @@ void main() {
     exit(1);
   }
 
+  // Validate version format (semantic versioning)
+  if (!isValidVersion(mcpVersion)) {
+    stderr.writeln(
+      'ERROR: Invalid version format: $mcpVersion\n'
+      'Version must follow semantic versioning (e.g., 1.0.0, 0.2.3, 1.2.3-beta)',
+    );
+    exit(1);
+  }
+
   // Generate version.g.dart
   final generatedContent = '''
 // GENERATED CODE - DO NOT MODIFY BY HAND
@@ -35,6 +44,8 @@ const version = '$mcpVersion';
 ''';
 
   final outputFile = File(outputPath);
+  // Ensure the directory exists
+  outputFile.parent.createSync(recursive: true);
   outputFile.writeAsStringSync(generatedContent);
 
   print('Generated $outputPath with version: $mcpVersion');
@@ -53,9 +64,17 @@ String extractVersion(String pubspecPath) {
 
   for (final line in lines) {
     final trimmed = line.trim();
+    // Match 'version:' at the start of the line (accounting for leading spaces)
     if (trimmed.startsWith('version:')) {
-      // Extract version after 'version:'
-      final version = trimmed.substring('version:'.length).trim();
+      // Extract version after 'version:', removing quotes if present
+      var version = trimmed.substring('version:'.length).trim();
+      
+      // Remove surrounding quotes if present
+      if ((version.startsWith('"') && version.endsWith('"')) ||
+          (version.startsWith("'") && version.endsWith("'"))) {
+        version = version.substring(1, version.length - 1);
+      }
+      
       if (version.isEmpty) {
         stderr.writeln('ERROR: Empty version in $pubspecPath');
         exit(1);
@@ -66,4 +85,13 @@ String extractVersion(String pubspecPath) {
 
   stderr.writeln('ERROR: Version not found in $pubspecPath');
   exit(1);
+}
+
+bool isValidVersion(String version) {
+  // Basic semantic versioning pattern: major.minor.patch with optional pre-release and build metadata
+  // Examples: 1.0.0, 0.2.3, 1.2.3-beta, 1.0.0+build123, 1.2.3-alpha.1+build.456
+  final semverPattern = RegExp(
+    r'^\d+\.\d+\.\d+(-[0-9A-Za-z\-\.]+)?(\+[0-9A-Za-z\-\.]+)?$',
+  );
+  return semverPattern.hasMatch(version);
 }
