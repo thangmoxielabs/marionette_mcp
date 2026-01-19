@@ -1,0 +1,13 @@
+name: marionette_mcp_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+workspace:
+  - packages/marionette_mcp
+  - packages/marionette_flutter
+  - packages/marionette_mcp/example
+  - packages/marionette_flutter/example
+  - example
+  - tool
