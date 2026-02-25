@@ -220,8 +220,12 @@ final class VmServiceContext {
               description:
                   'The key of the text field. You can get the key of an element by calling get_interactive_elements.',
             ),
+            'text': JsonSchema.string(
+              description:
+                  'The visible text content of the text field. You can get the visible text content of an element by calling get_interactive_elements.',
+            ),
           },
-          required: ['input', 'key'],
+          required: ['input'],
         ),
         callback: (args, extra) async {
           final input = args['input'] as String;
