@@ -39,7 +39,7 @@ class WidgetFinder {
     void visitor(Element element) {
       if (found != null) {
         return;
-      } else if (matcher.matches(element.widget, configuration)) {
+      } else if (matcher.matches(element, configuration)) {
         found = element;
       } else {
         element.visitChildren(visitor);
