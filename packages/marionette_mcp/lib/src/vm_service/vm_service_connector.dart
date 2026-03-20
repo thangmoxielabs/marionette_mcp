@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:logging/logging.dart' as logging;
 import 'package:vm_service/vm_service.dart';
@@ -183,10 +184,18 @@ class VmServiceConnector {
       return responseJson;
     } on RPCError catch (e) {
       _logger.severe('Error calling extension $extensionName', e);
+      // e.message is often a generic "Server error". The actual exception
+      // details are in e.data (a Map?) set by register_extension_internal.dart.
+      final data = e.data != null
+          ? Map<String, dynamic>.from(e.data!)
+          : null;
+      final detailException = data?['exception'] as String?;
+      final detailStack = data?['stack'] as String?;
       throw VmServiceExtensionException(
         'Extension $extensionName failed',
         errorCode: e.code,
-        error: e.message,
+        error: detailException ?? e.message,
+        stackTrace: detailStack,
       );
     } catch (err) {
       _logger.severe('Error calling extension $extensionName', err);
