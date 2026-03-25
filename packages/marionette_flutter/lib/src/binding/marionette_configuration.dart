@@ -10,6 +10,7 @@ class MarionetteConfiguration {
     this.isInteractiveWidget,
     this.shouldStopTraversal,
     this.extractText,
+    this.extractProperties,
     this.maxScreenshotSize = const Size(2000, 2000),
     this.logCollector,
   });
@@ -54,6 +55,32 @@ class MarionetteConfiguration {
   /// )
   /// ```
   final String? Function(Element element)? extractText;
+
+  /// Extracts custom properties from an app-specific widget instance.
+  ///
+  /// Use this to expose widget state that is not available via
+  /// `debugFillProperties`. The returned map is merged into the element data
+  /// returned by `get_interactive_elements`, so the AI agent can see it.
+  ///
+  /// This callback is called after the built-in `debugFillProperties`
+  /// extraction. Returned keys override built-in properties with the same name.
+  ///
+  /// Example:
+  /// ```dart
+  /// MarionetteConfiguration(
+  ///   extractProperties: (element) {
+  ///     final widget = element.widget;
+  ///     if (widget is ShadButton) {
+  ///       return {
+  ///         'enabled': widget.enabled,
+  ///         'variant': widget.variant.name,
+  ///       };
+  ///     }
+  ///     return null;
+  ///   },
+  /// )
+  /// ```
+  final Map<String, Object>? Function(Element element)? extractProperties;
 
   /// Maximum size for screenshots in physical pixels.
   ///

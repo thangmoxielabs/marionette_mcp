@@ -74,6 +74,11 @@ class ElementTreeFinder {
           ),
     );
 
+    final customProperties = configuration.extractProperties?.call(element);
+    if (customProperties != null) {
+      data.addAll(customProperties);
+    }
+
     data['type'] = widget.runtimeType.toString();
 
     if (keyValue != null) {
