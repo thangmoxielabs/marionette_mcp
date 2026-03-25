@@ -217,14 +217,15 @@ By default, Marionette recognizes standard Flutter widgets like `ElevatedButton`
 
 2. **Text-based matching**: The `tap`, `scroll_to`, and other interaction tools can match elements by their text content using the `text` parameter (e.g., `tap(text: "Submit")`).
 
-By default, Marionette extracts text from standard Flutter widgets (`Text`, `RichText`, `EditableText`, `TextField`, `TextFormField`). Use `extractText` to add support for your custom text widgets. The callback receives the `Element` (access the widget via `element.widget`).
+By default, Marionette extracts text from standard Flutter widgets (`Text`, `RichText`, `EditableText`, `TextField`, `TextFormField`). Use `extractText` to add support for your custom widgets. The callback receives the `Element` (access the widget via `element.widget`), which lets you walk the element subtree — essential when widget properties like labels or placeholders are `Widget` instances rather than plain strings.
 
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
-import 'package:my_app/design_system/buttons.dart';
-import 'package:my_app/design_system/inputs.dart';
+import 'package:my_app/design_system/text.dart';
+import 'package:my_app/design_system/input_decorator.dart';
+import 'package:my_app/design_system/text_field.dart';
 
 void main() {
   if (kDebugMode) {
@@ -232,15 +233,18 @@ void main() {
       MarionetteConfiguration(
         // Identify your custom interactive widgets
         isInteractiveWidget: (type) =>
-            type == MyPrimaryButton ||
-            type == MyTextField ||
-            type == MyCheckbox,
+            type == MyPrimaryButton || type == MyTextField,
 
-        // Extract text from your custom widgets
+        // Extract text from your custom widgets.
+        // MyText.data is a String, so we can read it directly.
+        // MyTextField.label is a Widget, so we need Element access
+        // to walk the tree and find the rendered text.
         extractText: (element) {
           final widget = element.widget;
           if (widget is MyText) return widget.data;
-          if (widget is MyTextField) return widget.controller?.text;
+          if (widget is MyTextField) {
+            return _extractMyTextFieldText(element, widget);
+          }
           return null;
         },
       ),
@@ -250,6 +254,90 @@ void main() {
   }
 
   runApp(const MyApp());
+}
+
+/// Extracts label text from a MyTextField by walking the element tree.
+/// The label lives inside a MyInputDecorator child widget, so we first
+/// find the decorator by type, then extract the rendered text from its
+/// label widget.
+String? _extractMyTextFieldText(Element element, MyTextField widget) {
+  // Find the MyInputDecorator descendant that holds the label
+  final decorator = _findElementOfType<MyInputDecorator>(element);
+  if (decorator != null) {
+    final decoratorWidget = decorator.widget as MyInputDecorator;
+    if (decoratorWidget.label != null) {
+      final label = _findTextInWidgetSlot(decorator, decoratorWidget.label!);
+      if (label != null) return label;
+    }
+  }
+
+  // Fall back to current value
+  return widget.controller?.text;
+}
+
+/// Finds the first descendant Element whose widget is type [T].
+Element? _findElementOfType<T extends Widget>(Element root) {
+  Element? found;
+  root.visitChildren((child) {
+    if (found != null) return;
+    if (child.widget is T) {
+      found = child;
+    } else {
+      found = _findElementOfType<T>(child);
+    }
+  });
+  return found;
+}
+
+/// Finds the Element for [targetWidget] under [parent], then
+/// collects all rendered text beneath it.
+String? _findTextInWidgetSlot(Element parent, Widget targetWidget) {
+  Element? slotElement;
+  parent.visitChildren((child) {
+    if (slotElement != null) return;
+    if (identical(child.widget, targetWidget)) {
+      slotElement = child;
+    } else {
+      slotElement = _findElementForWidget(child, targetWidget);
+    }
+  });
+  if (slotElement == null) return null;
+
+  final buffer = StringBuffer();
+  _collectText(slotElement!, buffer);
+  final result = buffer.toString().trim();
+  return result.isEmpty ? null : result;
+}
+
+Element? _findElementForWidget(Element root, Widget target) {
+  Element? found;
+  root.visitChildren((child) {
+    if (found != null) return;
+    if (identical(child.widget, target)) {
+      found = child;
+    } else {
+      found = _findElementForWidget(child, target);
+    }
+  });
+  return found;
+}
+
+void _collectText(Element element, StringBuffer buffer) {
+  final widget = element.widget;
+  if (widget is Text && widget.data != null) {
+    if (buffer.isNotEmpty) buffer.write(' ');
+    buffer.write(widget.data);
+    return;
+  }
+  if (widget is RichText) {
+    final plain = widget.text.toPlainText();
+    if (plain.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' ');
+      buffer.write(plain);
+    }
+    return;
+  }
+  element.visitChildren((child) => _collectText(child, buffer));
 }
 ```
 

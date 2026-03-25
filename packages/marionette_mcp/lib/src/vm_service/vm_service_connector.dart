@@ -400,5 +400,5 @@ String extractErrorDetail(RPCError e) {
     return details;
   }
 
-  return e.message;
+  return e.toString();
 }
