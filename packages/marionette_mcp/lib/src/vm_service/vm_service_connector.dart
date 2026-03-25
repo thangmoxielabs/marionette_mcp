@@ -185,18 +185,10 @@ class VmServiceConnector {
       return responseJson;
     } on RPCError catch (e) {
       _logger.severe('Error calling extension $extensionName', e);
-      // e.message is often a generic "Server error". The actual exception
-      // details are in e.data (a Map?) set by register_extension_internal.dart.
-      final data = e.data != null
-          ? Map<String, dynamic>.from(e.data!)
-          : null;
-      final detailException = data?['exception'] as String?;
-      final detailStack = data?['stack'] as String?;
       throw VmServiceExtensionException(
         'Extension $extensionName failed',
         errorCode: e.code,
-        error: detailException ?? e.message,
-        stackTrace: detailStack,
+        error: extractErrorDetail(e),
       );
     } catch (err) {
       _logger.severe('Error calling extension $extensionName', err);
@@ -380,4 +372,33 @@ class VmServiceConnector {
       'Make sure the Flutter app has marionette_flutter initialized.',
     );
   }
+}
+
+/// Extracts a human-readable error detail from an [RPCError].
+///
+/// The Flutter-side extension handler encodes errors as a JSON string
+/// containing `exception`, `stack`, and `method` keys. This function
+/// attempts to decode that JSON and return the `exception` value.
+/// Falls back to [RPCError.details], then [RPCError.message].
+String extractErrorDetail(RPCError e) {
+  // Try to parse the message as JSON (Flutter extension error format).
+  try {
+    final decoded = json.decode(e.message);
+    if (decoded is Map<String, dynamic>) {
+      final exception = decoded['exception'];
+      if (exception is String && exception.isNotEmpty) {
+        return exception;
+      }
+    }
+  } catch (_) {
+    // Not JSON — fall through.
+  }
+
+  // Try the data.details field.
+  final details = e.details;
+  if (details != null && details.isNotEmpty) {
+    return details;
+  }
+
+  return e.message;
 }
