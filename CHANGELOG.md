@@ -1,5 +1,20 @@
 # Unreleased
 
+## Broker Transport (new)
+
+- Add outbound WebSocket broker transport for production-grade builds (web, desktop, mobile release).
+- New `Dispatcher` handler registry with `Transport` abstraction (VM service + broker).
+- `BrokerTransport` with JSON-RPC 2.0 codec, frame discriminator, auth handshake, idle timeout, and auto-reconnect.
+- `BrokerServer` in marionette_mcp: local WS server with token auth, idle enforcement, and request relay.
+- `BrokerDiscovery` via handle files in TMPDIR for auto-discovery.
+- CLI: `marionette broker start/status/stop` commands.
+- CLI: `--broker [<uri>]` flag on all action commands with auto-discovery.
+- Screencast frames routed through broker transport (binary frames with 0x02 discriminator).
+- Connected overlay widget (forced-on in release builds).
+- Tree-shake: broker code excluded when `MARIONETTE_ENABLED` flag is absent.
+
+## Other changes
+
 - Surface `Semantics(label:)` and `Semantics(value:)` in `get_interactive_elements`. Widgets that render via inline-span trees (`Text.rich`, custom-painted text, etc.) where `toPlainText()` loses structure can now be made fully readable by agents through an explicit accessibility annotation, without altering the rendered widget.
 
 # 0.5.0
