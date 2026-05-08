@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
 import 'package:marionette_flutter/src/services/hit_test_utils.dart';
+import 'package:marionette_flutter/src/services/snapshot_options.dart';
 
 /// Finds and extracts interactive elements from the Flutter widget tree.
 class ElementTreeFinder {
@@ -10,20 +11,26 @@ class ElementTreeFinder {
   final MarionetteConfiguration configuration;
 
   /// Returns a list of interactive elements from the current widget tree.
-  List<Map<String, dynamic>> findInteractiveElements() {
+  List<Map<String, dynamic>> findInteractiveElements({
+    SnapshotOptions options = const SnapshotOptions(),
+  }) {
     final elements = <Map<String, dynamic>>[];
     final rootElement = WidgetsBinding.instance.rootElement;
 
     if (rootElement != null) {
-      _visitElement(rootElement, elements);
+      _visitElement(rootElement, elements, options: options);
     }
 
     return elements;
   }
 
-  void _visitElement(Element element, List<Map<String, dynamic>> result) {
+  void _visitElement(
+    Element element,
+    List<Map<String, dynamic>> result, {
+    SnapshotOptions options = const SnapshotOptions(),
+  }) {
     final widget = element.widget;
-    final elementData = _extractElementData(element, widget);
+    final elementData = _extractElementData(element, widget, options: options);
 
     if (elementData != null) {
       result.add(elementData);
@@ -34,11 +41,15 @@ class ElementTreeFinder {
     }
 
     element.visitChildren((child) {
-      _visitElement(child, result);
+      _visitElement(child, result, options: options);
     });
   }
 
-  Map<String, dynamic>? _extractElementData(Element element, Widget widget) {
+  Map<String, dynamic>? _extractElementData(
+    Element element,
+    Widget widget, {
+    SnapshotOptions options = const SnapshotOptions(),
+  }) {
     // Only process elements with render objects
     final renderObject = element.renderObject;
     if (renderObject == null) {
