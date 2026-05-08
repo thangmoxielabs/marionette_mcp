@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:marionette_mcp/src/broker/broker_discovery.dart';
-import 'package:marionette_mcp/src/broker/broker_handle.dart';
 import 'package:marionette_mcp/src/broker/broker_server.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -10,13 +9,9 @@ import 'package:test/test.dart';
 void main() {
   group('BrokerDiscovery', () {
     late Directory tempDir;
-    late String originalTmpdir;
 
     setUp(() {
-      originalTmpdir = Platform.environment['TMPDIR'] ?? '/tmp';
       tempDir = Directory.systemTemp.createTempSync('broker_discovery_test_');
-      // We can't easily override TMPDIR for the BrokerHandle, so we test
-      // the logic directly with known files.
     });
 
     tearDown(() {
