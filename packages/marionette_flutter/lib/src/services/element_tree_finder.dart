@@ -6,6 +6,26 @@ import 'package:marionette_flutter/src/services/snapshot_options.dart';
 import 'package:marionette_flutter/src/services/snapshot_session.dart';
 import 'package:marionette_flutter/src/services/stable_identity.dart';
 
+/// Result of a snapshot with metadata.
+class SnapshotResult {
+  SnapshotResult({
+    required this.elements,
+    this.truncated = false,
+    this.screenName,
+    this.routeName,
+  });
+  final List<Map<String, dynamic>> elements;
+  final bool truncated;
+  final String? screenName;
+  final String? routeName;
+}
+
+class _VisitMetaResult {
+  _VisitMetaResult({this.screenName, this.routeName});
+  final String? screenName;
+  final String? routeName;
+}
+
 /// Finds and extracts interactive elements from the Flutter widget tree.
 class ElementTreeFinder {
   const ElementTreeFinder(this.configuration);
@@ -16,34 +36,69 @@ class ElementTreeFinder {
   List<Map<String, dynamic>> findInteractiveElements({
     SnapshotOptions options = const SnapshotOptions(),
   }) {
+    return findInteractiveElementsWithMeta(options: options).elements;
+  }
+
+  /// Returns a [SnapshotResult] with elements and metadata (truncated, screenName, routeName).
+  SnapshotResult findInteractiveElementsWithMeta({
+    SnapshotOptions options = const SnapshotOptions(),
+  }) {
     SnapshotSession.instance.beginSnapshot();
     final elements = <Map<String, dynamic>>[];
     final rootElement = WidgetsBinding.instance.rootElement;
 
+    String? screenName;
+    String? routeName;
+
     if (rootElement != null) {
-      _visitElement(rootElement, elements, options: options);
+      final result = _visitElementWithMeta(
+        rootElement,
+        elements,
+        options: options,
+        screenName: screenName,
+        routeName: routeName,
+      );
+      screenName = result.screenName;
+      routeName = result.routeName;
     }
 
-    return elements;
+    final truncated = options.limit != null && elements.length == options.limit!;
+
+    return SnapshotResult(
+      elements: elements,
+      truncated: truncated,
+      screenName: screenName,
+      routeName: routeName,
+    );
   }
 
-  void _visitElement(
+  _VisitMetaResult _visitElementWithMeta(
     Element element,
     List<Map<String, dynamic>> result, {
     SnapshotOptions options = const SnapshotOptions(),
     Map<String, int>? siblingCounters,
     String? parentRef,
+    String? screenName,
+    String? routeName,
   }) {
     final widget = element.widget;
 
     if (options.prune && widget is Offstage && widget.offstage) {
-      return;
+      return _VisitMetaResult(screenName: screenName, routeName: routeName);
+    }
+
+    if (options.limit != null && result.length >= options.limit!) {
+      return _VisitMetaResult(screenName: screenName, routeName: routeName);
     }
 
     final myType = widget.runtimeType.toString();
     final myIndex = (siblingCounters ?? const <String, int>{})[myType] ?? 0;
     final ownCounters = <String, int>{...?siblingCounters};
     ownCounters[myType] = myIndex + 1;
+
+    if (widget is Scaffold) {
+      screenName = _extractScreenName(widget);
+    }
 
     final elementData = _extractElementData(
       element,
@@ -58,19 +113,33 @@ class ElementTreeFinder {
     }
 
     if (configuration.shouldStopAtType(widget.runtimeType)) {
-      return;
+      return _VisitMetaResult(screenName: screenName, routeName: routeName);
     }
 
     final myRef = elementData?['ref'] as String?;
     element.visitChildren((child) {
-      _visitElement(
+      final r = _visitElementWithMeta(
         child,
         result,
         options: options,
         siblingCounters: ownCounters,
         parentRef: myRef ?? parentRef,
+        screenName: screenName,
+        routeName: routeName,
       );
+      screenName = r.screenName;
+      routeName = r.routeName;
     });
+
+    return _VisitMetaResult(screenName: screenName, routeName: routeName);
+  }
+
+  String? _extractScreenName(Scaffold scaffold) {
+    final appBar = scaffold.appBar;
+    if (appBar is PreferredSizeWidget) {
+      // Can't easily extract title here without building; skip for now.
+    }
+    return null;
   }
 
   Map<String, dynamic>? _extractElementData(

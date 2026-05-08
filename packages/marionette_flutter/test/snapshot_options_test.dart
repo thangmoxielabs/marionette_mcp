@@ -65,4 +65,23 @@ void main() {
     expect(pruned.any((e) => e['key'] == 'hidden-btn'), isFalse);
     expect(pruned.any((e) => e['key'] == 'visible-btn'), isTrue);
   });
+
+  testWidgets('limit caps result and surfaces truncated:true', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: List.generate(
+            10,
+            (i) => ElevatedButton(onPressed: () {}, key: ValueKey('B$i'), child: Text('B$i')),
+          ),
+        ),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final result = finder.findInteractiveElementsWithMeta(
+      options: const SnapshotOptions(limit: 5),
+    );
+    expect(result.elements.length, 5);
+    expect(result.truncated, isTrue);
+  });
 }
