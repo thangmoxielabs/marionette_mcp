@@ -7,6 +7,7 @@ import 'package:marionette_flutter/src/binding/extensions/text_extensions.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
 import 'package:marionette_flutter/src/binding/marionette_extension_result.dart';
 import 'package:marionette_flutter/src/binding/register_extension_internal.dart';
+import 'package:marionette_flutter/src/dispatcher/vm_service_transport.dart';
 import 'package:marionette_flutter/src/services/create_screencast_server.dart';
 import 'package:marionette_flutter/src/services/element_tree_finder.dart';
 import 'package:marionette_flutter/src/services/gesture_dispatcher.dart';
@@ -119,6 +120,10 @@ class MarionetteBinding extends WidgetsFlutterBinding {
         });
       },
     );
+
+    // Start VM service transport to bind dispatcher methods to dart:developer
+    final vmTransport = VmServiceTransport(dispatcher: marionetteDispatcher);
+    vmTransport.start();
   }
 
   @override
