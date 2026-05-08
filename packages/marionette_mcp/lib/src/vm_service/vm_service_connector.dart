@@ -249,8 +249,8 @@ class VmServiceConnector {
   /// Gets the list of interactive elements in the widget tree.
   ///
   /// Throws [NotConnectedException] if not connected.
-  Future<Map<String, dynamic>> getInteractiveElements() {
-    return _callExtension('marionette.interactiveElements', {});
+  Future<Map<String, dynamic>> getInteractiveElements({Map<String, dynamic> params = const {}}) {
+    return _callExtension('marionette.interactiveElements', params);
   }
 
   /// Taps an element matching the given criteria.
