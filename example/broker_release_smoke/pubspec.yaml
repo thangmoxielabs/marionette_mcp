@@ -1,0 +1,17 @@
+name: broker_release_smoke
+description: Minimal example app for broker transport smoke testing.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  marionette_flutter:
+    path: ../../packages/marionette_flutter
+
+flutter:
+  uses-material-design: true
