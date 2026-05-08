@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
+import 'package:marionette_flutter/src/services/snapshot_session.dart';
 import 'package:marionette_flutter/src/services/widget_finder.dart';
 import 'package:marionette_flutter/src/services/widget_matcher.dart';
 
@@ -18,23 +19,78 @@ class GestureDispatcher {
   ///
   /// If [matcher] is a [CoordinatesMatcher], taps directly at the specified
   /// coordinates without searching the widget tree (fast path).
+  ///
+  /// If [ensureVisible] is true (default) and the matcher is a [RefMatcher],
+  /// attempts to scroll the element into view if it exists but is not hittable.
   Future<FindResult> tap(
     WidgetMatcher matcher,
     WidgetFinder widgetFinder,
-    MarionetteConfiguration configuration,
-  ) async {
+    MarionetteConfiguration configuration, {
+    bool ensureVisible = true,
+  }) async {
     // Fast path for coordinate-based tapping
     if (matcher is CoordinatesMatcher) {
       await _dispatchTapAtPosition(matcher.offset);
       return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final result = widgetFinder.findHittableElement(matcher, configuration);
+    var result = widgetFinder.findHittableElement(matcher, configuration);
+
+    // Auto-rescroll for RefMatcher if not hittable but ensureVisible is true
+    if (result is FindError && matcher is RefMatcher && ensureVisible) {
+      result = await _ensureVisibleIfNeeded(matcher, widgetFinder, configuration);
+    }
 
     if (result is FoundElement) {
       await _dispatchTapAtElement(result.element);
     }
     return result;
+  }
+
+  /// Attempts to find a non-hittable element matching [matcher], scroll it
+  /// into view via the nearest Scrollable ancestor, then re-find as hittable.
+  Future<FindResult> _ensureVisibleIfNeeded(
+    RefMatcher matcher,
+    WidgetFinder widgetFinder,
+    MarionetteConfiguration configuration,
+  ) async {
+    // Check session first
+    final stored = SnapshotSession.instance.lookup(matcher.ref);
+    if (stored == null) {
+      return FindError('ref-unknown');
+    }
+
+    // Find the element without hittability check
+    final element = widgetFinder.findElement(matcher, configuration);
+    if (element == null) {
+      return FindError('ref-stale');
+    }
+
+    // Find nearest Scrollable ancestor
+    ScrollableState? scrollable;
+    element.visitAncestorElements((ancestor) {
+      if (ancestor is StatefulElement && ancestor.state is ScrollableState) {
+        scrollable = ancestor.state as ScrollableState;
+        return false;
+      }
+      return true;
+    });
+
+    if (scrollable != null) {
+      try {
+        await Scrollable.ensureVisible(
+          element,
+          duration: Duration.zero,
+          alignment: 0.5,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      } catch (_) {
+        // If ensureVisible fails, continue and try to tap anyway
+      }
+    }
+
+    // Re-find with hittability check
+    return widgetFinder.findHittableElement(matcher, configuration);
   }
 
   Future<void> _dispatchTapAtElement(Element element) async {
@@ -87,6 +143,7 @@ class GestureDispatcher {
     WidgetFinder widgetFinder,
     MarionetteConfiguration configuration, {
     Duration delay = const Duration(milliseconds: 100),
+    bool ensureVisible = true,
   }) async {
     if (delay.isNegative || delay == Duration.zero) {
       throw ArgumentError('delay must be positive');
@@ -97,7 +154,11 @@ class GestureDispatcher {
       return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final result = widgetFinder.findHittableElement(matcher, configuration);
+    var result = widgetFinder.findHittableElement(matcher, configuration);
+
+    if (result is FindError && matcher is RefMatcher && ensureVisible) {
+      result = await _ensureVisibleIfNeeded(matcher, widgetFinder, configuration);
+    }
 
     if (result is FoundElement) {
       await _dispatchDoubleTapAtElement(result.element, delay);
@@ -149,6 +210,7 @@ class GestureDispatcher {
     WidgetFinder widgetFinder,
     MarionetteConfiguration configuration, {
     Duration duration = const Duration(milliseconds: 600),
+    bool ensureVisible = true,
   }) async {
     if (duration.isNegative || duration == Duration.zero) {
       throw ArgumentError('duration must be positive');
@@ -159,7 +221,11 @@ class GestureDispatcher {
       return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final result = widgetFinder.findHittableElement(matcher, configuration);
+    var result = widgetFinder.findHittableElement(matcher, configuration);
+
+    if (result is FindError && matcher is RefMatcher && ensureVisible) {
+      result = await _ensureVisibleIfNeeded(matcher, widgetFinder, configuration);
+    }
 
     if (result is FoundElement) {
       await _dispatchLongPressAtElement(result.element, duration);
