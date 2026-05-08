@@ -151,6 +151,12 @@ class ElementTreeFinder {
     // Check visibility
     data['visible'] = _isElementVisible(renderObject);
 
+    if (options.compact) {
+      const compactCoreKeys = {'type', 'text', 'key', 'bounds', 'visible', 'ref', 'parentRef'};
+      const compactAllowList = {'enabled', 'value', 'selected', 'checked'};
+      data.removeWhere((k, _) => !compactCoreKeys.contains(k) && !compactAllowList.contains(k));
+    }
+
     final identity = _buildIdentity(element, widget, discoverableText, siblingIndex);
     final ref = SnapshotSession.instance.assign(identity);
     data['ref'] = ref;

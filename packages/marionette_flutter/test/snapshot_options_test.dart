@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marionette_flutter/marionette_flutter.dart';
+import 'package:marionette_flutter/src/services/element_tree_finder.dart';
 import 'package:marionette_flutter/src/services/snapshot_options.dart';
 
 void main() {
@@ -24,5 +27,22 @@ void main() {
     expect(opts.limit, 50);
     expect(opts.viewportOnly, isTrue);
     expect(opts.scope, '@5');
+  });
+
+  testWidgets('compact: true drops debugFillProperties keys, keeps allow-list', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Switch(value: true, onChanged: (_) {}),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final compact = finder.findInteractiveElements(
+      options: const SnapshotOptions(compact: true),
+    );
+    final entry = compact.firstWhere((e) => e['type'] == 'Switch');
+    // Allow-list keys retained:
+    expect(entry.containsKey('value'), isTrue);
+    // Bulk debugFillProperties keys dropped (e.g. 'activeColor'):
+    expect(entry.containsKey('activeColor'), isFalse);
   });
 }
