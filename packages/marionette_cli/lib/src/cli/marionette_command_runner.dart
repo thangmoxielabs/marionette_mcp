@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
+import 'package:marionette_cli/src/cli/commands/broker/broker_command.dart';
 import 'package:marionette_cli/src/cli/commands/doctor_command.dart';
 import 'package:marionette_cli/src/cli/commands/double_tap_command.dart';
 import 'package:marionette_cli/src/cli/commands/enter_text_command.dart';
@@ -64,6 +65,7 @@ class MarionetteCommandRunner extends CommandRunner<int> {
     addCommand(DoctorCommand(_registry));
     addCommand(HelpAiCommand());
     addCommand(McpCommand());
+    addCommand(BrokerCommand());
   }
 
   final InstanceRegistry _registry;

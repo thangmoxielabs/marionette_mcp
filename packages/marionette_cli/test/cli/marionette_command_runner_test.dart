@@ -41,6 +41,7 @@ void main() {
         'doctor',
         'help-ai',
         'mcp',
+        'broker',
         'help',
       };
 
