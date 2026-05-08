@@ -3,6 +3,7 @@ import 'package:marionette_flutter/src/binding/register_extension.dart';
 import 'package:marionette_flutter/src/binding/register_extension_internal.dart';
 import 'package:marionette_flutter/src/services/element_tree_finder.dart';
 import 'package:marionette_flutter/src/services/log_store.dart';
+import 'package:marionette_flutter/src/services/snapshot_options.dart';
 import 'package:marionette_flutter/src/version.g.dart' as v;
 
 /// Help text returned by `marionette.getLogs` when no log collector has been
@@ -53,8 +54,14 @@ void registerInfoExtensions({
   registerInternalMarionetteExtension(
     name: 'marionette.interactiveElements',
     callback: (params) async {
-      final elements = elementTreeFinder.findInteractiveElements();
-      return MarionetteExtensionResult.success({'elements': elements});
+      final options = SnapshotOptions.fromJson(params);
+      final result = elementTreeFinder.findInteractiveElementsWithMeta(options: options);
+      return MarionetteExtensionResult.success({
+        'elements': result.elements,
+        if (result.truncated) 'truncated': true,
+        if (result.screenName != null) 'screenName': result.screenName,
+        if (result.routeName != null) 'routeName': result.routeName,
+      });
     },
   );
 
