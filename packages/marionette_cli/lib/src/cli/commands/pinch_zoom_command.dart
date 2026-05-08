@@ -22,7 +22,9 @@ class PinchZoomCommand extends InstanceCommand {
         'start-distance',
         help: 'Initial finger distance in pixels.',
         defaultsTo: '200',
-      );
+      )
+      ..addOption('ref', help: 'Reference @N from a prior get-interactive-elements')
+      ..addFlag('ensure-visible', defaultsTo: true, negatable: true, help: 'Auto-scroll element into view');
   }
 
   final InstanceRegistry _registry;
@@ -46,6 +48,10 @@ class PinchZoomCommand extends InstanceCommand {
       x: _parseNum(argResults?['x'] as String?),
       y: _parseNum(argResults?['y'] as String?),
     );
+    final ref = argResults?['ref'] as String?;
+    if (ref != null) matcher['ref'] = ref;
+    final ensureVisible = argResults!['ensure-visible'] as bool;
+    if (!ensureVisible) matcher['ensureVisible'] = 'false';
 
     final xStr = argResults?['x'] as String?;
     final yStr = argResults?['y'] as String?;

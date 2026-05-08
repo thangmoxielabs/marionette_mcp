@@ -12,7 +12,9 @@ class TapCommand extends InstanceCommand {
       ..addOption('text', help: 'Visible text content of the element.')
       ..addOption('type', help: 'Widget type name (e.g., ElevatedButton).')
       ..addOption('x', help: 'X coordinate for positional tap.')
-      ..addOption('y', help: 'Y coordinate for positional tap.');
+      ..addOption('y', help: 'Y coordinate for positional tap.')
+      ..addOption('ref', help: 'Reference @N from a prior get-interactive-elements')
+      ..addFlag('ensure-visible', defaultsTo: true, negatable: true, help: 'Auto-scroll element into view');
   }
 
   final InstanceRegistry _registry;
@@ -36,14 +38,23 @@ class TapCommand extends InstanceCommand {
       x: _parseNum(argResults?['x'] as String?),
       y: _parseNum(argResults?['y'] as String?),
     );
+    final ref = argResults?['ref'] as String?;
+    if (ref != null) matcher['ref'] = ref;
 
     if (matcher.isEmpty) {
       usageException(
-        'At least one matcher required: --key, --text, --type, or --x/--y.',
+        'At least one matcher required: --key, --text, --type, --ref, or --x/--y.',
       );
     }
 
+    final ensureVisible = argResults!['ensure-visible'] as bool;
+    if (!ensureVisible) matcher['ensureVisible'] = 'false';
+
     final response = await connector.tap(matcher);
+    if (response.containsKey('error')) {
+      stderr.writeln('Error: ${response['error']}');
+      return 1;
+    }
     final message = response['message'] as String? ?? 'Successfully tapped';
     stdout.writeln(message);
     return 0;

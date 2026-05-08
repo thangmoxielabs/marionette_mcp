@@ -9,7 +9,9 @@ class ScrollToCommand extends InstanceCommand {
   ScrollToCommand(this._registry) {
     argParser
       ..addOption('key', help: 'Element key (ValueKey<String>).')
-      ..addOption('text', help: 'Visible text of the element to scroll to.');
+      ..addOption('text', help: 'Visible text of the element to scroll to.')
+      ..addOption('ref', help: 'Reference @N from a prior get-interactive-elements')
+      ..addFlag('ensure-visible', defaultsTo: true, negatable: true, help: 'Auto-scroll element into view');
   }
 
   final InstanceRegistry _registry;
@@ -30,6 +32,10 @@ class ScrollToCommand extends InstanceCommand {
       key: argResults?['key'] as String?,
       text: argResults?['text'] as String?,
     );
+    final ref = argResults?['ref'] as String?;
+    if (ref != null) matcher['ref'] = ref;
+    final ensureVisible = argResults!['ensure-visible'] as bool;
+    if (!ensureVisible) matcher['ensureVisible'] = 'false';
 
     if (matcher.isEmpty) {
       usageException('At least one matcher required: --key or --text.');
