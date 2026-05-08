@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:marionette_flutter/src/dispatcher/broker_options.dart';
 import 'package:marionette_flutter/src/services/log_collector.dart';
 
 /// Configuration for the Marionette extensions.
@@ -22,6 +23,7 @@ class MarionetteConfiguration {
     this.extractProperties,
     this.maxScreenshotSize = const Size(2000, 2000),
     this.logCollector,
+    this.enableBroker,
   });
 
   /// Determines if an app-specific widget type is interactive.
@@ -134,6 +136,14 @@ class MarionetteConfiguration {
   /// // Call collector.addLog(message) from your logging listener
   /// ```
   final LogCollector? logCollector;
+
+  /// Broker transport configuration.
+  ///
+  /// When non-null and the build flag `MARIONETTE_ENABLED` is true, the app
+  /// will attempt to connect to a local broker server via WebSocket. This
+  /// enables production-grade builds to be driven by marionette without the
+  /// VM service.
+  final BrokerOptions? enableBroker;
 
   /// Checks if a widget type is interactive (built-in + custom).
   bool isInteractiveWidgetType(Type type) {
