@@ -225,6 +225,28 @@ class ElementTreeFinder {
     // Check visibility
     data['visible'] = _isElementVisible(renderObject);
 
+    if (options.viewportOnly && renderObject is RenderBox && renderObject.hasSize) {
+      try {
+        final offset = renderObject.localToGlobal(Offset.zero);
+        final size = renderObject.size;
+        final screenSize = WidgetsBinding
+                .instance.platformDispatcher.views.first.physicalSize /
+            WidgetsBinding
+                .instance.platformDispatcher.views.first.devicePixelRatio;
+
+        final intersects = offset.dx + size.width >= 0 &&
+            offset.dy + size.height >= 0 &&
+            offset.dx < screenSize.width &&
+            offset.dy < screenSize.height;
+
+        if (!intersects) {
+          return null;
+        }
+      } catch (_) {
+        // If we can't compute intersection, include the element
+      }
+    }
+
     if (options.compact) {
       const compactCoreKeys = {'type', 'text', 'key', 'bounds', 'visible', 'ref', 'parentRef'};
       const compactAllowList = {'enabled', 'value', 'selected', 'checked'};

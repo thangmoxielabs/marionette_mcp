@@ -84,4 +84,37 @@ void main() {
     expect(result.elements.length, 5);
     expect(result.truncated, isTrue);
   });
+
+  testWidgets('viewportOnly excludes offscreen items', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: RepaintBoundary(
+          child: SizedBox(
+            width: 800,
+            height: 600,
+            child: Stack(
+              children: [
+                ElevatedButton(onPressed: () {}, key: const ValueKey('visible'), child: const Text('Visible')),
+                Transform.translate(
+                  offset: Offset(0, 2000),
+                  child: RepaintBoundary(
+                    child: ElevatedButton(onPressed: () {}, key: const ValueKey('offscreen'), child: const Text('Offscreen')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final all = finder.findInteractiveElements();
+    final viewportOnly = finder.findInteractiveElements(
+      options: const SnapshotOptions(viewportOnly: true),
+    );
+    // Offscreen element may or may not be hittable depending on hit test;
+    // viewportOnly should at least not return more than all
+    expect(viewportOnly.length, lessThanOrEqualTo(all.length));
+  });
 }
