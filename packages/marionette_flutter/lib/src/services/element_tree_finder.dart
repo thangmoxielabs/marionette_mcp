@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
 import 'package:marionette_flutter/src/services/hit_test_utils.dart';
 import 'package:marionette_flutter/src/services/snapshot_options.dart';
+import 'package:marionette_flutter/src/services/snapshot_session.dart';
+import 'package:marionette_flutter/src/services/stable_identity.dart';
 
 /// Finds and extracts interactive elements from the Flutter widget tree.
 class ElementTreeFinder {
@@ -14,6 +16,7 @@ class ElementTreeFinder {
   List<Map<String, dynamic>> findInteractiveElements({
     SnapshotOptions options = const SnapshotOptions(),
   }) {
+    SnapshotSession.instance.beginSnapshot();
     final elements = <Map<String, dynamic>>[];
     final rootElement = WidgetsBinding.instance.rootElement;
 
@@ -28,11 +31,24 @@ class ElementTreeFinder {
     Element element,
     List<Map<String, dynamic>> result, {
     SnapshotOptions options = const SnapshotOptions(),
+    Map<String, int>? siblingCounters,
+    String? parentRef,
   }) {
     final widget = element.widget;
-    final elementData = _extractElementData(element, widget, options: options);
+    final myType = widget.runtimeType.toString();
+    final myIndex = (siblingCounters ?? const <String, int>{})[myType] ?? 0;
+    final ownCounters = <String, int>{...?siblingCounters};
+    ownCounters[myType] = myIndex + 1;
+
+    final elementData = _extractElementData(
+      element,
+      widget,
+      options: options,
+      siblingIndex: myIndex,
+    );
 
     if (elementData != null) {
+      if (parentRef != null) elementData['parentRef'] = parentRef;
       result.add(elementData);
     }
 
@@ -40,8 +56,15 @@ class ElementTreeFinder {
       return;
     }
 
+    final myRef = elementData?['ref'] as String?;
     element.visitChildren((child) {
-      _visitElement(child, result, options: options);
+      _visitElement(
+        child,
+        result,
+        options: options,
+        siblingCounters: ownCounters,
+        parentRef: myRef ?? parentRef,
+      );
     });
   }
 
@@ -49,6 +72,7 @@ class ElementTreeFinder {
     Element element,
     Widget widget, {
     SnapshotOptions options = const SnapshotOptions(),
+    int siblingIndex = 0,
   }) {
     // Only process elements with render objects
     final renderObject = element.renderObject;
@@ -127,7 +151,27 @@ class ElementTreeFinder {
     // Check visibility
     data['visible'] = _isElementVisible(renderObject);
 
+    final identity = _buildIdentity(element, widget, discoverableText, siblingIndex);
+    final ref = SnapshotSession.instance.assign(identity);
+    data['ref'] = ref;
+
     return data;
+  }
+
+  StableIdentity _buildIdentity(Element element, Widget widget, String? text, int siblingIndex) {
+    final ancestors = <String>[];
+    element.visitAncestorElements((a) {
+      final n = a.widget.runtimeType.toString();
+      if (!n.startsWith('_') && ancestors.length < 5) ancestors.add(n);
+      return true;
+    });
+    return StableIdentity(
+      key: widget.key,
+      widgetType: widget.runtimeType.toString(),
+      ancestorTypePath: ancestors,
+      textFingerprint: text,
+      siblingIndex: siblingIndex,
+    );
   }
 
   String? _extractKeyValue(Key? key) {

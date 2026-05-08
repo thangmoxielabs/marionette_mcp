@@ -172,4 +172,25 @@ void main() {
       expect(elements.any((e) => e['type'] == 'ListTile'), isTrue);
     });
   });
+
+  group('Ref assignment', () {
+    testWidgets('snapshot assigns sequential refs and parentRef', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            ElevatedButton(onPressed: () {}, child: const Text('A')),
+            ElevatedButton(onPressed: () {}, child: const Text('B')),
+          ]),
+        ),
+      ));
+      final elements = ElementTreeFinder(const MarionetteConfiguration())
+          .findInteractiveElements();
+      final refs = elements.map((e) => e['ref']).toList();
+      expect(refs.first, '@1');
+      expect(refs.length >= 2, isTrue);
+      for (final e in elements) {
+        expect(e.containsKey('ref'), isTrue);
+      }
+    });
+  });
 }
