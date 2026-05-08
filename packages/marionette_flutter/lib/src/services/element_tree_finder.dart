@@ -5,6 +5,25 @@ import 'package:marionette_flutter/src/services/hit_test_utils.dart';
 import 'package:marionette_flutter/src/services/snapshot_options.dart';
 import 'package:marionette_flutter/src/services/snapshot_session.dart';
 import 'package:marionette_flutter/src/services/stable_identity.dart';
+import 'package:marionette_flutter/src/services/widget_matcher.dart';
+
+/// Builds a [StableIdentity] for an element, used by both the snapshot walker
+/// and [RefMatcher].
+StableIdentity buildIdentityFor(Element element, Widget widget, String? text, int siblingIndex) {
+  final ancestors = <String>[];
+  element.visitAncestorElements((a) {
+    final n = a.widget.runtimeType.toString();
+    if (!n.startsWith('_') && ancestors.length < 5) ancestors.add(n);
+    return true;
+  });
+  return StableIdentity(
+    key: widget.key,
+    widgetType: widget.runtimeType.toString(),
+    ancestorTypePath: ancestors,
+    textFingerprint: text,
+    siblingIndex: siblingIndex,
+  );
+}
 
 /// Result of a snapshot with metadata.
 class SnapshotResult {
@@ -43,16 +62,24 @@ class ElementTreeFinder {
   SnapshotResult findInteractiveElementsWithMeta({
     SnapshotOptions options = const SnapshotOptions(),
   }) {
+    // Resolve scope BEFORE beginSnapshot so we can look up refs from prior snapshot
+    Element? scopedRoot = WidgetsBinding.instance.rootElement;
+    if (options.scope != null && scopedRoot != null) {
+      scopedRoot = _resolveScope(options.scope!, scopedRoot);
+      if (scopedRoot == null) {
+        return SnapshotResult(elements: [], truncated: false);
+      }
+    }
+
     SnapshotSession.instance.beginSnapshot();
     final elements = <Map<String, dynamic>>[];
-    final rootElement = WidgetsBinding.instance.rootElement;
 
     String? screenName;
     String? routeName;
 
-    if (rootElement != null) {
+    if (scopedRoot != null) {
       final result = _visitElementWithMeta(
-        rootElement,
+        scopedRoot,
         elements,
         options: options,
         screenName: screenName,
@@ -70,6 +97,66 @@ class ElementTreeFinder {
       screenName: screenName,
       routeName: routeName,
     );
+  }
+
+  /// Resolves a scope string to an Element.
+  /// - If scope looks like "@N", looks up identity via session and finds matching element.
+  /// - If scope is a selector like "key:foo" or "text:Bar", builds a WidgetMatcher.
+  Element? _resolveScope(String scope, Element rootElement) {
+    if (scope.startsWith('@')) {
+      // Ref-based scope: look up identity in session
+      final identity = SnapshotSession.instance.lookup(scope);
+      if (identity == null) return null;
+      return _findElementByIdentity(rootElement, identity);
+    } else {
+      // Selector-based scope: build a WidgetMatcher
+      final matcher = _buildScopeMatcher(scope);
+      if (matcher == null) return null;
+      return _findElementByMatcher(rootElement, matcher);
+    }
+  }
+
+  /// Finds an element whose identity matches the stored [identity].
+  Element? _findElementByIdentity(Element root, StableIdentity identity) {
+    Element? found;
+    void visitor(Element element) {
+      if (found != null) return;
+      final widget = element.widget;
+      final text = configuration.extractTextFromWidget(element);
+      final candidate = buildIdentityFor(element, widget, text, 0);
+      if (identity.matchesIdentity(candidate)) {
+        found = element;
+        return;
+      }
+      element.visitChildren(visitor);
+    }
+    visitor(root);
+    return found;
+  }
+
+  /// Builds a WidgetMatcher from a selector string like "key:foo" or "text:Bar".
+  WidgetMatcher? _buildScopeMatcher(String scope) {
+    if (scope.startsWith('key:')) {
+      return KeyMatcher(scope.substring(4));
+    } else if (scope.startsWith('text:')) {
+      return TextMatcher(scope.substring(5));
+    }
+    return null;
+  }
+
+  /// Finds an element matching the given [matcher].
+  Element? _findElementByMatcher(Element root, WidgetMatcher matcher) {
+    Element? found;
+    void visitor(Element element) {
+      if (found != null) return;
+      if (matcher.matches(element, configuration)) {
+        found = element;
+        return;
+      }
+      element.visitChildren(visitor);
+    }
+    visitor(root);
+    return found;
   }
 
   _VisitMetaResult _visitElementWithMeta(
@@ -261,19 +348,7 @@ class ElementTreeFinder {
   }
 
   StableIdentity _buildIdentity(Element element, Widget widget, String? text, int siblingIndex) {
-    final ancestors = <String>[];
-    element.visitAncestorElements((a) {
-      final n = a.widget.runtimeType.toString();
-      if (!n.startsWith('_') && ancestors.length < 5) ancestors.add(n);
-      return true;
-    });
-    return StableIdentity(
-      key: widget.key,
-      widgetType: widget.runtimeType.toString(),
-      ancestorTypePath: ancestors,
-      textFingerprint: text,
-      siblingIndex: siblingIndex,
-    );
+    return buildIdentityFor(element, widget, text, siblingIndex);
   }
 
   String? _extractKeyValue(Key? key) {

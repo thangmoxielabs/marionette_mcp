@@ -117,4 +117,49 @@ void main() {
     // viewportOnly should at least not return more than all
     expect(viewportOnly.length, lessThanOrEqualTo(all.length));
   });
+
+  testWidgets('scope by ref returns only descendants of scoped element', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(
+          key: const ValueKey('root-col'),
+          children: [
+            ElevatedButton(onPressed: () {}, key: const ValueKey('btn-a'), child: const Text('A')),
+            ElevatedButton(onPressed: () {}, key: const ValueKey('btn-b'), child: const Text('B')),
+          ],
+        ),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    // First snapshot to assign refs
+    final all = finder.findInteractiveElements();
+    final btnARef = all.firstWhere((e) => e['key'] == 'btn-a')['ref'] as String;
+
+    // Scope to btn-a's ref
+    final scoped = finder.findInteractiveElements(
+      options: SnapshotOptions(scope: btnARef),
+    );
+    expect(scoped.any((e) => e['key'] == 'btn-a'), isTrue);
+    expect(scoped.any((e) => e['key'] == 'btn-b'), isFalse);
+    expect(scoped.any((e) => e['key'] == 'root-col'), isFalse);
+  });
+
+  testWidgets('scope by key selector returns subtree', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            ElevatedButton(onPressed: () {}, key: const ValueKey('btn-a'), child: const Text('A')),
+            ElevatedButton(onPressed: () {}, key: const ValueKey('btn-b'), child: const Text('B')),
+          ],
+        ),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final scoped = finder.findInteractiveElements(
+      options: const SnapshotOptions(scope: 'key:btn-b'),
+    );
+    expect(scoped.any((e) => e['key'] == 'btn-b'), isTrue);
+    expect(scoped.any((e) => e['key'] == 'btn-a'), isFalse);
+  });
 }
