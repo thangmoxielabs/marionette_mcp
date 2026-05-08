@@ -194,6 +194,18 @@ class ElementTreeFinder {
       screenName = _extractScreenName(widget);
     }
 
+    // Capture route name from current ModalRoute
+    if (routeName == null) {
+      try {
+        final route = ModalRoute.of(element);
+        if (route != null && route.isCurrent) {
+          routeName = route.settings.name;
+        }
+      } catch (_) {
+        // Ignore if we can't get route
+      }
+    }
+
     final elementData = _extractElementData(
       element,
       widget,
@@ -232,8 +244,11 @@ class ElementTreeFinder {
 
   String? _extractScreenName(Scaffold scaffold) {
     final appBar = scaffold.appBar;
-    if (appBar is PreferredSizeWidget) {
-      // Can't easily extract title here without building; skip for now.
+    if (appBar is PreferredSizeWidget && appBar is AppBar) {
+      final title = appBar.title;
+      if (title is Text) {
+        return title.data;
+      }
     }
     return null;
   }

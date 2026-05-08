@@ -181,4 +181,31 @@ void main() {
     final iconBtn = elements.firstWhere((e) => e['key'] == 'save-icon');
     expect(iconBtn['text'], 'Save document');
   });
+
+  testWidgets('screenName extracted from AppBar title', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Home Screen')),
+        body: ElevatedButton(onPressed: () {}, child: const Text('Tap')),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final result = finder.findInteractiveElementsWithMeta();
+    expect(result.screenName, 'Home Screen');
+  });
+
+  testWidgets('routeName extracted from named route', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      initialRoute: '/settings',
+      routes: {
+        '/settings': (_) => Scaffold(
+          appBar: AppBar(title: const Text('Settings')),
+          body: ElevatedButton(onPressed: () {}, child: const Text('Save')),
+        ),
+      },
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final result = finder.findInteractiveElementsWithMeta();
+    expect(result.routeName, '/settings');
+  });
 }
