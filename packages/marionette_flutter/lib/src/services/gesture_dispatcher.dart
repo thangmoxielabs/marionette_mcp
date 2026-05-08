@@ -18,7 +18,7 @@ class GestureDispatcher {
   ///
   /// If [matcher] is a [CoordinatesMatcher], taps directly at the specified
   /// coordinates without searching the widget tree (fast path).
-  Future<void> tap(
+  Future<FindResult> tap(
     WidgetMatcher matcher,
     WidgetFinder widgetFinder,
     MarionetteConfiguration configuration,
@@ -26,16 +26,15 @@ class GestureDispatcher {
     // Fast path for coordinate-based tapping
     if (matcher is CoordinatesMatcher) {
       await _dispatchTapAtPosition(matcher.offset);
-      return;
+      return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final element = widgetFinder.findHittableElement(matcher, configuration);
+    final result = widgetFinder.findHittableElement(matcher, configuration);
 
-    if (element == null) {
-      throw Exception('Element matching ${matcher.toJson()} not found');
-    } else {
-      await _dispatchTapAtElement(element);
+    if (result is FoundElement) {
+      await _dispatchTapAtElement(result.element);
     }
+    return result;
   }
 
   Future<void> _dispatchTapAtElement(Element element) async {
@@ -83,7 +82,7 @@ class GestureDispatcher {
   /// Two taps are dispatched with [delay] between them.
   /// Defaults to 100ms, which is within Flutter's double-tap recognition
   /// window (kDoubleTapMinTime 40ms — kDoubleTapTimeout 300ms).
-  Future<void> doubleTap(
+  Future<FindResult> doubleTap(
     WidgetMatcher matcher,
     WidgetFinder widgetFinder,
     MarionetteConfiguration configuration, {
@@ -95,16 +94,15 @@ class GestureDispatcher {
 
     if (matcher is CoordinatesMatcher) {
       await _dispatchDoubleTapAtPosition(matcher.offset, delay);
-      return;
+      return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final element = widgetFinder.findHittableElement(matcher, configuration);
+    final result = widgetFinder.findHittableElement(matcher, configuration);
 
-    if (element == null) {
-      throw Exception('Element matching ${matcher.toJson()} not found');
-    } else {
-      await _dispatchDoubleTapAtElement(element, delay);
+    if (result is FoundElement) {
+      await _dispatchDoubleTapAtElement(result.element, delay);
     }
+    return result;
   }
 
   Future<void> _dispatchDoubleTapAtElement(
@@ -146,7 +144,7 @@ class GestureDispatcher {
   /// The pointer is held down for [duration] before being released.
   /// Defaults to 600ms (kLongPressTimeout + kPressTimeout), matching
   /// Flutter's [WidgetTester.longPress] behavior.
-  Future<void> longPress(
+  Future<FindResult> longPress(
     WidgetMatcher matcher,
     WidgetFinder widgetFinder,
     MarionetteConfiguration configuration, {
@@ -158,16 +156,15 @@ class GestureDispatcher {
 
     if (matcher is CoordinatesMatcher) {
       await _dispatchLongPressAtPosition(matcher.offset, duration);
-      return;
+      return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final element = widgetFinder.findHittableElement(matcher, configuration);
+    final result = widgetFinder.findHittableElement(matcher, configuration);
 
-    if (element == null) {
-      throw Exception('Element matching ${matcher.toJson()} not found');
-    } else {
-      await _dispatchLongPressAtElement(element, duration);
+    if (result is FoundElement) {
+      await _dispatchLongPressAtElement(result.element, duration);
     }
+    return result;
   }
 
   Future<void> _dispatchLongPressAtElement(
@@ -269,7 +266,7 @@ class GestureDispatcher {
   /// - scale < 1.0: zoom out (fingers move together)
   ///
   /// [startDistance] is the initial distance between the two fingers in pixels.
-  Future<void> pinchZoom(
+  Future<FindResult> pinchZoom(
     WidgetMatcher matcher,
     WidgetFinder widgetFinder,
     MarionetteConfiguration configuration, {
@@ -289,16 +286,16 @@ class GestureDispatcher {
         scale: scale,
         startDistance: startDistance,
       );
-      return;
+      return FoundElement(WidgetsBinding.instance.rootElement!);
     }
 
-    final element = widgetFinder.findHittableElement(matcher, configuration);
+    final result = widgetFinder.findHittableElement(matcher, configuration);
 
-    if (element == null) {
-      throw Exception('Element matching ${matcher.toJson()} not found');
+    if (result is! FoundElement) {
+      return result;
     }
 
-    final renderObject = element.renderObject;
+    final renderObject = result.element.renderObject;
     if (renderObject is! RenderBox) {
       throw Exception('Element does not have a RenderBox');
     }
@@ -315,6 +312,7 @@ class GestureDispatcher {
       scale: scale,
       startDistance: startDistance,
     );
+    return result;
   }
 
   Future<void> _dispatchPinchZoomAtPosition(
