@@ -45,13 +45,29 @@ void registerGestureTools(
             },
             required: ['x', 'y'],
           ),
+          'ref': JsonSchema.string(
+            description:
+                'Reference (@N) from a prior get_interactive_elements call. Alternative to key/text/type/coordinates.',
+          ),
+          'ensureVisible': JsonSchema.boolean(
+            description:
+                'Auto-scroll element into view if not visible. Defaults to true.',
+          ),
         },
       ),
       callback: (args, extra) async {
         final matcher = buildMatcher(args);
         logger.info('Tapping with matcher: $matcher');
         return runTool(logger, 'tap', () async {
-          final response = await connector.tap(matcher);
+          final params = Map<String, dynamic>.from(matcher);
+          if (args['ensureVisible'] == false) params['ensureVisible'] = 'false';
+          final response = await connector.tap(params);
+          if (response.containsKey('error')) {
+            return CallToolResult(
+              isError: true,
+              content: [TextContent(text: response['error'] as String)],
+            );
+          }
           final message = response['message'] as String?;
           return CallToolResult(
             content: [TextContent(text: message ?? 'Successfully tapped')],
