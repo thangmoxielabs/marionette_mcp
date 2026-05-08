@@ -5,7 +5,6 @@ import 'package:marionette_flutter/src/services/element_tree_finder.dart';
 import 'package:marionette_flutter/src/services/snapshot_session.dart';
 import 'package:marionette_flutter/src/services/stable_identity.dart';
 import 'package:marionette_flutter/src/services/widget_finder.dart';
-import 'package:marionette_flutter/src/services/widget_matcher.dart';
 import 'package:test/test.dart' as dart_test;
 
 void main() {
@@ -65,7 +64,6 @@ void main() {
     });
 
     dart_test.test('returns false for unknown ref', () {
-      const m = RefMatcher('@99');
       // Unknown ref should return false without needing a real element
       final stored = SnapshotSession.instance.lookup('@99');
       dart_test.expect(stored, isNull);
