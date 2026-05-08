@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
+import 'package:marionette_flutter/src/services/snapshot_session.dart';
+import 'package:marionette_flutter/src/services/stable_identity.dart';
 
 /// Abstract base class for matching widgets in the Flutter widget tree.
 sealed class WidgetMatcher {
@@ -23,9 +25,11 @@ sealed class WidgetMatcher {
       return TextMatcher.fromJson(json);
     } else if (json.containsKey('type')) {
       return TypeStringMatcher.fromJson(json);
+    } else if (json.containsKey('ref')) {
+      return RefMatcher.fromJson(json);
     } else {
       throw ArgumentError(
-        'Matcher JSON must contain "focused", "x" & "y", "key", "text", or "type" field',
+        'Matcher JSON must contain "focused", "x" & "y", "key", "text", "type", or "ref" field',
       );
     }
   }
@@ -171,4 +175,47 @@ class TypeStringMatcher extends WidgetMatcher {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{'type': typeName};
   }
+}
+
+/// Matches widgets by their ref from a prior snapshot.
+///
+/// Resolves the ref via [SnapshotSession] and compares the stored
+/// [StableIdentity] against the candidate element's identity.
+class RefMatcher extends WidgetMatcher {
+  const RefMatcher(this.ref);
+
+  factory RefMatcher.fromJson(Map<String, dynamic> json) =>
+      RefMatcher(json['ref'] as String);
+
+  final String ref;
+
+  @override
+  bool matches(Element element, MarionetteConfiguration configuration) {
+    final stored = SnapshotSession.instance.lookup(ref);
+    if (stored == null) return false;
+    final text = configuration.extractTextFromWidget(element);
+    final candidate = buildIdentityFor(element, element.widget, text, 0);
+    return stored.matchesIdentity(candidate);
+  }
+
+  @override
+  Map<String, dynamic> toJson() => {'ref': ref};
+}
+
+/// Builds a [StableIdentity] for an element. Shared between the snapshot walker
+/// and [RefMatcher].
+StableIdentity buildIdentityFor(Element element, Widget widget, String? text, int siblingIndex) {
+  final ancestors = <String>[];
+  element.visitAncestorElements((a) {
+    final n = a.widget.runtimeType.toString();
+    if (!n.startsWith('_') && ancestors.length < 5) ancestors.add(n);
+    return true;
+  });
+  return StableIdentity(
+    key: widget.key,
+    widgetType: widget.runtimeType.toString(),
+    ancestorTypePath: ancestors,
+    textFingerprint: text,
+    siblingIndex: siblingIndex,
+  );
 }

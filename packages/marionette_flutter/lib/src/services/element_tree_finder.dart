@@ -7,24 +7,6 @@ import 'package:marionette_flutter/src/services/snapshot_session.dart';
 import 'package:marionette_flutter/src/services/stable_identity.dart';
 import 'package:marionette_flutter/src/services/widget_matcher.dart';
 
-/// Builds a [StableIdentity] for an element, used by both the snapshot walker
-/// and [RefMatcher].
-StableIdentity buildIdentityFor(Element element, Widget widget, String? text, int siblingIndex) {
-  final ancestors = <String>[];
-  element.visitAncestorElements((a) {
-    final n = a.widget.runtimeType.toString();
-    if (!n.startsWith('_') && ancestors.length < 5) ancestors.add(n);
-    return true;
-  });
-  return StableIdentity(
-    key: widget.key,
-    widgetType: widget.runtimeType.toString(),
-    ancestorTypePath: ancestors,
-    textFingerprint: text,
-    siblingIndex: siblingIndex,
-  );
-}
-
 /// Result of a snapshot with metadata.
 class SnapshotResult {
   SnapshotResult({
