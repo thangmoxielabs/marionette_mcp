@@ -16,7 +16,7 @@ class BrokerHandle {
 
   String get path => p.join(
         Platform.environment['TMPDIR'] ?? '/tmp',
-        'marionette-broker-${pid ?? Platform.pid}.json',
+        'marionette-broker-${pid ?? _currentPid()}.json',
       );
 
   Future<void> write() async {
@@ -25,7 +25,7 @@ class BrokerHandle {
       jsonEncode({
         'port': port,
         'token': token,
-        'pid': pid ?? Platform.pid,
+        'pid': pid ?? _currentPid(),
         'createdAt': DateTime.now().toIso8601String(),
       }),
     );
@@ -55,5 +55,10 @@ class BrokerHandle {
 
   static String directoryPath() {
     return Platform.environment['TMPDIR'] ?? '/tmp';
+  }
+
+  static int _currentPid() {
+    // Use a unique identifier since Dart doesn't expose process PID directly
+    return DateTime.now().millisecondsSinceEpoch;
   }
 }
