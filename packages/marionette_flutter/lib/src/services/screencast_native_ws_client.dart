@@ -39,6 +39,7 @@ class ScreencastNativeWsClient implements ScreencastServer {
     int? maxWidth,
     int? maxHeight,
     int? wsPort,
+    BinaryFrameEmitter? binaryEmitter,
   }) async {
     if (wsPort == null) {
       throw ArgumentError.notNull('wsPort');
@@ -69,7 +70,7 @@ class ScreencastNativeWsClient implements ScreencastServer {
     // Stop capturing if the WebSocket disconnects unexpectedly.
     unawaited(ws.done.then((_) => stopScreencast()));
 
-    _service!.start(onFrame: _onFrame);
+    _service!.start(onFrame: _onFrame, binaryEmitter: binaryEmitter);
 
     return {
       'message': 'Screencast started',

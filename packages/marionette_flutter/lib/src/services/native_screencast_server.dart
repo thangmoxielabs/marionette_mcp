@@ -30,6 +30,7 @@ class NativeScreencastServer implements ScreencastServer {
     int? maxWidth,
     int? maxHeight,
     int? wsPort,
+    BinaryFrameEmitter? binaryEmitter,
   }) async {
     if (_activeDelegate != null) {
       throw StateError('Screencast already active');
@@ -52,6 +53,7 @@ class NativeScreencastServer implements ScreencastServer {
         maxWidth: maxWidth,
         maxHeight: maxHeight,
         wsPort: wsPort,
+        binaryEmitter: binaryEmitter,
       );
     } catch (_) {
       _activeDelegate = null;

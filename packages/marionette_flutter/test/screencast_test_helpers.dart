@@ -16,6 +16,7 @@ class FakeScreencastService extends ScreencastService {
   void start({
     required Future<void> Function(ScreencastFrame frame) onFrame,
     Duration interval = const Duration(milliseconds: 40),
+    void Function(Uint8List frame)? binaryEmitter,
   }) {
     onFrameCallback = onFrame;
   }

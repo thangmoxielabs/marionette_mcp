@@ -37,6 +37,7 @@ class ScreencastTcpServer implements ScreencastServer {
     int? maxWidth,
     int? maxHeight,
     int? wsPort,
+    BinaryFrameEmitter? binaryEmitter,
   }) async {
     if (_isActive) {
       throw StateError('Screencast already active');
@@ -54,7 +55,10 @@ class ScreencastTcpServer implements ScreencastServer {
       serverSocket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       serverSocket.listen(_onClientConnected);
 
-      service.start(onFrame: _onFrame);
+      service.start(
+        onFrame: _onFrame,
+        binaryEmitter: binaryEmitter,
+      );
 
       _service = service;
       _serverSocket = serverSocket;

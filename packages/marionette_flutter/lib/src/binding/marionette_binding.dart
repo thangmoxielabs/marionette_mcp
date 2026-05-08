@@ -107,6 +107,7 @@ class MarionetteBinding extends WidgetsFlutterBinding {
     registerMediaExtensions(
       screenshotService: _screenshotService,
       screencastServer: _screencastServer,
+      binaryEmitter: brokerBinaryEmitter,
     );
 
     // pressBackButton stays inline because it calls handlePopRoute(), which
@@ -169,6 +170,14 @@ class MarionetteBinding extends WidgetsFlutterBinding {
 
   /// Returns the active broker transport, or null if not connected.
   BrokerTransport? get brokerTransport => _brokerTransport;
+
+  /// Returns a binary frame emitter that routes through the broker transport,
+  /// or null if no broker is connected.
+  void Function(List<int>)? get brokerBinaryEmitter {
+    final transport = _brokerTransport;
+    if (transport == null || !transport.isConnected) return null;
+    return transport.sendBinary;
+  }
 
   @override
   Future<void> reassembleApplication() async {
