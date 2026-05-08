@@ -45,4 +45,24 @@ void main() {
     // Bulk debugFillProperties keys dropped (e.g. 'activeColor'):
     expect(entry.containsKey('activeColor'), isFalse);
   });
+
+  testWidgets('prune skips Offstage subtrees', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          ElevatedButton(onPressed: () {}, key: const ValueKey('visible-btn'), child: const Text('Visible')),
+          Offstage(
+            offstage: true,
+            child: Material(child: TextButton(onPressed: () {}, key: const ValueKey('hidden-btn'), child: const Text('Hidden'))),
+          ),
+        ]),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final pruned = finder.findInteractiveElements(
+      options: const SnapshotOptions(prune: true),
+    );
+    expect(pruned.any((e) => e['key'] == 'hidden-btn'), isFalse);
+    expect(pruned.any((e) => e['key'] == 'visible-btn'), isTrue);
+  });
 }

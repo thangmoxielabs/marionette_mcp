@@ -35,6 +35,11 @@ class ElementTreeFinder {
     String? parentRef,
   }) {
     final widget = element.widget;
+
+    if (options.prune && widget is Offstage && widget.offstage) {
+      return;
+    }
+
     final myType = widget.runtimeType.toString();
     final myIndex = (siblingCounters ?? const <String, int>{})[myType] ?? 0;
     final ownCounters = <String, int>{...?siblingCounters};
