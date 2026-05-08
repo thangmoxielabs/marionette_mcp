@@ -20,10 +20,9 @@ void registerGestureExtensions({
     name: 'marionette.tap',
     callback: (params) async {
       final matcher = WidgetMatcher.fromJson(params);
-      await gestureDispatcher.tap(matcher, widgetFinder, configuration);
-      return MarionetteExtensionResult.success({
-        'message': 'Tapped element matching: ${matcher.toJson()}',
-      });
+      final ensureVisible = params['ensureVisible'] != 'false';
+      final result = await gestureDispatcher.tap(matcher, widgetFinder, configuration, ensureVisible: ensureVisible);
+      return _findResultToExtensionResult(result, matcher, 'Tapped');
     },
   );
 
@@ -217,4 +216,21 @@ void registerGestureExtensions({
       });
     },
   );
+}
+
+MarionetteExtensionResult _findResultToExtensionResult(
+  dynamic result,
+  WidgetMatcher matcher,
+  String successPrefix,
+) {
+  if (result is FoundElement) {
+    return MarionetteExtensionResult.success({
+      'message': '$successPrefix element matching: ${matcher.toJson()}',
+    });
+  } else if (result is FindError) {
+    return MarionetteExtensionResult.error(0, result.code);
+  }
+  return MarionetteExtensionResult.success({
+    'message': '$successPrefix element matching: ${matcher.toJson()}',
+  });
 }
