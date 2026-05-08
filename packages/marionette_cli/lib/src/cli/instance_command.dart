@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:marionette_cli/src/cli/broker_connector.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
+import 'package:marionette_mcp/src/broker/broker_discovery.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 
 /// Base class for commands that operate on a connected Flutter app instance.
@@ -10,6 +12,8 @@ import 'package:marionette_mcp/src/vm_service/vm_service_connector.dart';
 /// Handles resolving the instance name from the global `--instance` flag,
 /// looking up the URI from the registry, connecting, executing, and
 /// disconnecting.
+///
+/// Supports both VM service mode (default) and broker mode (--broker flag).
 abstract class InstanceCommand extends Command<int> {
   InstanceRegistry get registry;
 
@@ -17,13 +21,26 @@ abstract class InstanceCommand extends Command<int> {
   /// [connector].
   Future<int> execute(VmServiceConnector connector);
 
+  /// Subclasses can override this to perform their operation via a broker.
+  /// Default implementation falls back to [execute] with a shim connector.
+  Future<int> executeBroker(BrokerConnector connector) async {
+    // Default: not supported in broker mode
+    stderr.writeln('This command does not support broker mode.');
+    return 1;
+  }
+
   @override
   Future<int> run() async {
     final rawInstance = globalResults?['instance'] as String?;
     final rawUri = globalResults?['uri'] as String?;
+    final rawBroker = globalResults?['broker'] as String?;
     final instanceName =
         (rawInstance != null && rawInstance.isNotEmpty) ? rawInstance : null;
     final directUri = (rawUri != null && rawUri.isNotEmpty) ? rawUri : null;
+
+    if (rawBroker != null) {
+      return _runBroker(rawBroker);
+    }
 
     if (instanceName != null && directUri != null) {
       usageException(
@@ -84,6 +101,45 @@ abstract class InstanceCommand extends Command<int> {
       return 1;
     } catch (e) {
       stderr.writeln('Error: $e');
+      return 1;
+    } finally {
+      await connector.disconnect();
+    }
+  }
+
+  Future<int> _runBroker(String brokerArg) async {
+    late final Uri uri;
+    late final String token;
+
+    if (brokerArg.isEmpty) {
+      // Auto-discover
+      final handle = await BrokerDiscovery.findRunning();
+      if (handle == null) {
+        stderr.writeln(
+          'No broker found. Run "marionette broker start" first.',
+        );
+        return 1;
+      }
+      uri = Uri.parse('ws://127.0.0.1:${handle.port}');
+      token = handle.token;
+    } else {
+      // Parse broker URI (ws://host:port?token=xxx)
+      final parsed = Uri.parse(brokerArg);
+      uri = parsed;
+      token = parsed.queryParameters['token'] ?? '';
+      if (token.isEmpty) {
+        stderr.writeln('Broker URI must include ?token= parameter.');
+        return 1;
+      }
+    }
+
+    final connector = BrokerConnector(uri: uri, token: token);
+
+    try {
+      await connector.connect();
+      return await executeBroker(connector);
+    } catch (e) {
+      stderr.writeln('Broker error: $e');
       return 1;
     } finally {
       await connector.disconnect();

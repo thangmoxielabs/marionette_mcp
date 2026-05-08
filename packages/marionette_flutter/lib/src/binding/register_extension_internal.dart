@@ -1,9 +1,13 @@
-import 'dart:convert';
-import 'dart:developer' as developer;
-
-import 'package:flutter/foundation.dart';
 import 'package:marionette_flutter/src/binding/marionette_extension_result.dart';
 import 'package:marionette_flutter/src/binding/register_extension.dart';
+import 'package:marionette_flutter/src/dispatcher/dispatcher.dart';
+
+/// Global dispatcher that all Marionette handlers register against.
+final marionetteDispatcher = Dispatcher();
+
+/// Callback type for Marionette extension handlers (VM service params).
+typedef MarionetteExtensionCallback = Future<MarionetteExtensionResult>
+    Function(Map<String, String> params);
 
 /// Registers a built-in Marionette service extension.
 ///
@@ -13,71 +17,30 @@ import 'package:marionette_flutter/src/binding/register_extension.dart';
 ///
 /// The `ext.flutter.` prefix is added automatically to [name].
 ///
-/// Uses [developer.registerExtension] directly, bypassing Flutter's
-/// [BindingBase.registerServiceExtension].
+/// Registers the handler on the global [marionetteDispatcher]. The VM service
+/// binding is handled separately by [VmServiceTransport].
 void registerInternalMarionetteExtension({
   required String name,
   required MarionetteExtensionCallback callback,
 }) {
-  final methodName = 'ext.flutter.$name';
+  // strip 'marionette.' prefix; register on dispatcher
+  final method = name.replaceFirst(RegExp(r'^marionette\.'), '');
+  marionetteDispatcher.register(method, (params) async {
+    final r = await callback(_toVmParams(params));
+    return _resultToJson(r);
+  });
+}
 
-  developer.registerExtension(
-    methodName,
-    (method, parameters) async {
-      // Wait for the outer event loop, same as Flutter's
-      // registerServiceExtension, to avoid handling extensions in the middle
-      // of a frame.
-      await Future<void>.delayed(Duration.zero);
+Map<String, String> _toVmParams(Map<String, dynamic> params) {
+  return params.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+}
 
-      late final MarionetteExtensionResult result;
-      try {
-        result = await callback(parameters);
-      } on ArgumentError catch (e) {
-        return developer.ServiceExtensionResponse.error(
-          developer.ServiceExtensionResponse.invalidParams,
-          e.message?.toString() ?? e.toString(),
-        );
-      } catch (exception, stack) {
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: exception,
-            stack: stack,
-            context: ErrorDescription(
-              'during a service extension callback for "$method"',
-            ),
-          ),
-        );
-
-        return developer.ServiceExtensionResponse.error(
-          developer.ServiceExtensionResponse.extensionError,
-          json.encode(<String, String>{
-            'exception': exception.toString(),
-            'stack': stack.toString(),
-            'method': method,
-          }),
-        );
-      }
-
-      switch (result) {
-        case MarionetteExtensionSuccess(:final data):
-          final responseData = Map<String, Object?>.from(data);
-          responseData['type'] = '_extensionType';
-          responseData['method'] = method;
-          responseData['status'] = 'Success';
-          return developer.ServiceExtensionResponse.result(
-            json.encode(responseData),
-          );
-        case MarionetteExtensionError(:final code, :final detail):
-          return developer.ServiceExtensionResponse.error(
-            developer.ServiceExtensionResponse.extensionErrorMin + code,
-            detail,
-          );
-        case MarionetteExtensionInvalidParams(:final detail):
-          return developer.ServiceExtensionResponse.error(
-            developer.ServiceExtensionResponse.invalidParams,
-            detail,
-          );
-      }
-    },
-  );
+Map<String, dynamic> _resultToJson(MarionetteExtensionResult result) {
+  return switch (result) {
+    MarionetteExtensionSuccess(data: final data) => data,
+    MarionetteExtensionError(code: final code, detail: final detail) =>
+      throw DispatcherError('extension_error_$code', detail),
+    MarionetteExtensionInvalidParams(detail: final detail) =>
+      throw DispatcherError('invalid_params', detail),
+  };
 }

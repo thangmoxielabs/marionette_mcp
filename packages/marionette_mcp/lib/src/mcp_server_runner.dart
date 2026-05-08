@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:logging/logging.dart' as logging;
+import 'package:marionette_mcp/src/broker/broker_context.dart';
+import 'package:marionette_mcp/src/broker/broker_discovery.dart';
+import 'package:marionette_mcp/src/broker/broker_server.dart';
 import 'package:marionette_mcp/src/compat/copilot_stdio_server_transport.dart';
 import 'package:marionette_mcp/src/version.g.dart';
 import 'package:marionette_mcp/src/vm_service/vm_service_context.dart';
@@ -25,14 +28,57 @@ Important: Elements are matched by their key (ValueKey<String>) or text content.
 ///
 /// Sets up logging, creates the MCP server with tools, and runs it on either
 /// stdio or SSE transport depending on whether [ssePort] is provided.
+///
+/// If [brokerPort] is provided, the server runs in broker mode using a local
+/// WebSocket broker instead of the VM service. If [brokerPort] is 0, an
+/// existing broker is auto-discovered via handle files.
 Future<int> runMcpServer({
   required String logLevel,
   String? logFile,
   int? ssePort,
+  int? brokerPort,
 }) async {
   setupLogging(logLevel, logFile);
 
-  final vmService = VmServiceContext();
+  final logger = logging.Logger('main');
+
+  BrokerServer? broker;
+  BrokerContext? brokerContext;
+  VmServiceContext? vmService;
+
+  if (brokerPort != null) {
+    // Broker mode
+    if (brokerPort == 0) {
+      // Auto-discover
+      final handle = await BrokerDiscovery.findRunning();
+      if (handle != null) {
+        logger.info('Auto-discovered broker on port ${handle.port}');
+        broker = BrokerServer(
+          port: handle.port,
+          token: handle.token,
+        );
+        // Don't start - just use the existing port
+        brokerContext = BrokerContext(broker);
+      } else {
+        logger.warning('No broker found. Run "marionette broker start" first.');
+      }
+    } else {
+      // Explicit port - try to discover
+      final handle = await BrokerDiscovery.findRunning();
+      if (handle != null && handle.port == brokerPort) {
+        logger.info('Using discovered broker on port $brokerPort');
+        broker = BrokerServer(port: brokerPort, token: handle.token);
+        brokerContext = BrokerContext(broker);
+      } else {
+        logger.warning('Broker on port $brokerPort not found');
+      }
+    }
+  }
+
+  if (brokerContext == null) {
+    // VM service mode
+    vmService = VmServiceContext();
+  }
 
   final server = McpServer(
     const Implementation(name: 'marionette-mcp', version: version),
@@ -42,7 +88,13 @@ Future<int> runMcpServer({
     ),
   );
 
-  vmService.registerTools(server);
+  if (brokerContext != null) {
+    brokerContext.registerTools(server);
+    logger.info('Running in broker mode');
+  } else {
+    vmService!.registerTools(server);
+    logger.info('Running in VM service mode');
+  }
 
   if (ssePort != null) {
     return _runSseServer(server, ssePort);

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:marionette_cli/src/cli/broker_connector.dart';
 import 'package:marionette_cli/src/cli/instance_command.dart';
 import 'package:marionette_cli/src/cli/matcher_builder.dart';
 import 'package:marionette_cli/src/instance_registry.dart';
@@ -55,6 +56,28 @@ class TapCommand extends InstanceCommand {
       stderr.writeln('Error: ${response['error']}');
       return 1;
     }
+    final message = response['message'] as String? ?? 'Successfully tapped';
+    stdout.writeln(message);
+    return 0;
+  }
+
+  @override
+  Future<int> executeBroker(BrokerConnector connector) async {
+    final matcher = buildMatcherFromArgs(
+      key: argResults?['key'] as String?,
+      text: argResults?['text'] as String?,
+      type: argResults?['type'] as String?,
+      x: _parseNum(argResults?['x'] as String?),
+      y: _parseNum(argResults?['y'] as String?),
+    );
+
+    if (matcher.isEmpty) {
+      usageException(
+        'At least one matcher required: --key, --text, --type, or --x/--y.',
+      );
+    }
+
+    final response = await connector.tap(matcher);
     final message = response['message'] as String? ?? 'Successfully tapped';
     stdout.writeln(message);
     return 0;

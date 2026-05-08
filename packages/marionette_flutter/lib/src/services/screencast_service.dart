@@ -123,6 +123,7 @@ class ScreencastService {
   bool _isActive = false;
   Timer? _timer;
   Future<void> Function(ScreencastFrame frame)? _onFrame;
+  void Function(Uint8List frame)? _binaryEmitter;
   bool _awaitingAck = false;
   Future<void>? _inFlightCallback;
   Stopwatch? _stopwatch;
@@ -135,15 +136,20 @@ class ScreencastService {
   /// Starts capturing frames. Calls [onFrame] for each captured frame.
   /// The [onFrame] callback returns a Future — the next frame is not
   /// captured until the previous callback completes (back-pressure).
+  ///
+  /// If [binaryEmitter] is provided, raw RGBA frames are also sent to it
+  /// (for forwarding through an external transport like a broker WebSocket).
   void start({
     required Future<void> Function(ScreencastFrame frame) onFrame,
     Duration interval = const Duration(milliseconds: 40),
+    void Function(Uint8List frame)? binaryEmitter,
   }) {
     if (_isActive) {
       throw StateError('ScreencastService is already active');
     }
     _isActive = true;
     _onFrame = onFrame;
+    _binaryEmitter = binaryEmitter;
     _awaitingAck = false;
     _captureAttempts = 0;
     _captureFailures = 0;
@@ -160,6 +166,7 @@ class ScreencastService {
     _stopwatch?.stop();
     _stopwatch = null;
     _onFrame = null;
+    _binaryEmitter = null;
   }
 
   void _onTick() {
@@ -243,6 +250,9 @@ class ScreencastService {
       width: captured.width,
       height: captured.height,
     );
+
+    // Emit binary frame to external transport if configured
+    _binaryEmitter?.call(frame.rgbaBytes);
 
     await _onFrame?.call(frame);
   }

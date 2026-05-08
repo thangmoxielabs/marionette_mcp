@@ -30,6 +30,7 @@ class ScreencastWebServer implements ScreencastServer {
   web.WebSocket? _webSocket;
   bool _isActive = false;
   bool _isStopping = false;
+  BinaryFrameEmitter? _binaryEmitter;
 
   @override
   bool get isActive => _isActive;
@@ -39,6 +40,7 @@ class ScreencastWebServer implements ScreencastServer {
     int? maxWidth,
     int? maxHeight,
     int? wsPort,
+    BinaryFrameEmitter? binaryEmitter,
   }) async {
     if (_isActive || _isStopping) {
       throw StateError('Screencast already active');
@@ -58,6 +60,7 @@ class ScreencastWebServer implements ScreencastServer {
     // Return viewport info so it can compute video dimensions, then it will
     // call again with wsPort to actually start the screencast.
     if (wsPort == null) {
+      _binaryEmitter = binaryEmitter;
       return {
         'message': 'Screencast requires wsPort',
         'transport': 'ws',
@@ -131,7 +134,7 @@ class ScreencastWebServer implements ScreencastServer {
     _webSocket!.onClose.first.then((_) => stopScreencast());
     _webSocket!.onError.first.then((_) => stopScreencast());
 
-    _service!.start(onFrame: _onFrame);
+    _service!.start(onFrame: _onFrame, binaryEmitter: _binaryEmitter);
 
     return {
       'message': 'Screencast started',

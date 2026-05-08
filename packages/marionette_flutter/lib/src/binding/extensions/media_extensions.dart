@@ -5,9 +5,13 @@ import 'package:marionette_flutter/src/services/screenshot_service.dart';
 
 /// Registers media-related `marionette.*` extensions: takeScreenshots,
 /// startScreencast, stopScreencast.
+///
+/// If [binaryEmitter] is provided, screencast frames are also sent to it
+/// for forwarding through an external transport (e.g., broker WebSocket).
 void registerMediaExtensions({
   required ScreenshotService screenshotService,
   required ScreencastServer screencastServer,
+  void Function(List<int>)? binaryEmitter,
 }) {
   registerInternalMarionetteExtension(
     name: 'marionette.takeScreenshots',
@@ -31,6 +35,7 @@ void registerMediaExtensions({
           maxWidth: maxWidth,
           maxHeight: maxHeight,
           wsPort: wsPort,
+          binaryEmitter: binaryEmitter,
         );
         return MarionetteExtensionResult.success(result);
       } on StateError catch (e) {

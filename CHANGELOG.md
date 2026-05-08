@@ -1,5 +1,7 @@
 # Unreleased
 
+## Refs & snapshot tightening
+
 - **Stable refs (`@N`)**: Every `get_interactive_elements` call assigns sequential refs to elements. Actions can target elements by ref via `--ref @N` (CLI) or `ref: '@N'` (MCP).
 - **Snapshot options**: `compact`, `prune`, `limit`, `viewportOnly`, and `scope` params on `get_interactive_elements` for tighter output.
 - **screenName & routeName**: Snapshot result includes the current screen name (from AppBar title) and route name.
@@ -7,6 +9,22 @@
 - **Auto-ensureVisible**: Ref-based actions auto-scroll elements into view. Opt out with `ensureVisible: false`.
 - **Ref error codes**: `ref-unknown`, `ref-stale`, `ref-ambiguous` for precise debugging.
 - **Expanded built-in widgets**: Cupertino and Material composite widgets now recognised as interactive.
+
+## Broker transport
+
+- Add outbound WebSocket broker transport for production-grade builds (web, desktop, mobile release).
+- New `Dispatcher` handler registry with `Transport` abstraction (VM service + broker).
+- `BrokerTransport` with JSON-RPC 2.0 codec, frame discriminator, auth handshake, idle timeout, and auto-reconnect.
+- `BrokerServer` in marionette_mcp: local WS server with token auth, idle enforcement, and request relay.
+- `BrokerDiscovery` via handle files in TMPDIR for auto-discovery.
+- CLI: `marionette broker start/status/stop` commands.
+- CLI: `--broker [<uri>]` flag on all action commands with auto-discovery.
+- Screencast frames routed through broker transport (binary frames with 0x02 discriminator).
+- Connected overlay widget (forced-on in release builds).
+- Tree-shake: broker code excluded when `MARIONETTE_ENABLED` flag is absent.
+
+## Other changes
+
 - Surface `Semantics(label:)` and `Semantics(value:)` in `get_interactive_elements`. Widgets that render via inline-span trees (`Text.rich`, custom-painted text, etc.) where `toPlainText()` loses structure can now be made fully readable by agents through an explicit accessibility annotation, without altering the rendered widget.
 
 # 0.5.0

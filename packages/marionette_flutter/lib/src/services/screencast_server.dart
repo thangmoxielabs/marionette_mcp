@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:marionette_flutter/src/services/screencast_service.dart';
@@ -9,6 +10,10 @@ typedef ScreencastServiceFactory = ScreencastService Function({
 
 /// Provider for the current viewport size.
 typedef ViewportSizeProvider = Size Function();
+
+/// Callback for emitting binary screencast frames to an external transport
+/// (e.g., broker WebSocket).
+typedef BinaryFrameEmitter = void Function(Uint8List frame);
 
 /// Abstract interface for screencast server implementations.
 ///
@@ -26,10 +31,14 @@ abstract class ScreencastServer {
   /// [wsPort] is used by WebSocket-based implementations (web and native
   /// reverse-WS) — the MCP side passes its WebSocket server port so the
   /// Flutter app can connect back to it.
+  ///
+  /// [binaryEmitter] is an optional callback that receives raw RGBA frames
+  /// for forwarding through an external transport (e.g., broker WebSocket).
   Future<Map<String, dynamic>> startScreencast({
     int? maxWidth,
     int? maxHeight,
     int? wsPort,
+    BinaryFrameEmitter? binaryEmitter,
   });
 
   /// Stops the screencast and cleans up resources.
