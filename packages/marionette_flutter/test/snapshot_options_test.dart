@@ -162,4 +162,23 @@ void main() {
     expect(scoped.any((e) => e['key'] == 'btn-b'), isTrue);
     expect(scoped.any((e) => e['key'] == 'btn-a'), isFalse);
   });
+
+  testWidgets('tooltip-as-label fallback for icon-only buttons', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Tooltip(
+          message: 'Save document',
+          child: IconButton(
+            key: const ValueKey('save-icon'),
+            icon: const Icon(Icons.save),
+            onPressed: () {},
+          ),
+        ),
+      ),
+    ));
+    final finder = ElementTreeFinder(const MarionetteConfiguration());
+    final elements = finder.findInteractiveElements();
+    final iconBtn = elements.firstWhere((e) => e['key'] == 'save-icon');
+    expect(iconBtn['text'], 'Save document');
+  });
 }

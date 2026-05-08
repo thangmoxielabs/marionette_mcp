@@ -167,6 +167,7 @@ class ElementTreeFinder {
     String? parentRef,
     String? screenName,
     String? routeName,
+    String? currentTooltip,
   }) {
     final widget = element.widget;
 
@@ -183,6 +184,12 @@ class ElementTreeFinder {
     final ownCounters = <String, int>{...?siblingCounters};
     ownCounters[myType] = myIndex + 1;
 
+    // Track Tooltip ancestor
+    var effectiveTooltip = currentTooltip;
+    if (widget is Tooltip && widget.message != null) {
+      effectiveTooltip = widget.message;
+    }
+
     if (widget is Scaffold) {
       screenName = _extractScreenName(widget);
     }
@@ -192,6 +199,7 @@ class ElementTreeFinder {
       widget,
       options: options,
       siblingIndex: myIndex,
+      currentTooltip: effectiveTooltip,
     );
 
     if (elementData != null) {
@@ -213,6 +221,7 @@ class ElementTreeFinder {
         parentRef: myRef ?? parentRef,
         screenName: screenName,
         routeName: routeName,
+        currentTooltip: effectiveTooltip,
       );
       screenName = r.screenName;
       routeName = r.routeName;
@@ -234,6 +243,7 @@ class ElementTreeFinder {
     Widget widget, {
     SnapshotOptions options = const SnapshotOptions(),
     int siblingIndex = 0,
+    String? currentTooltip,
   }) {
     // Only process elements with render objects
     final renderObject = element.renderObject;
@@ -253,7 +263,8 @@ class ElementTreeFinder {
     // TextMatcher (tap/scroll_to/enter_text) is not affected — otherwise a
     // Semantics(label: 'Save', child: ElevatedButton(...)) wrapper would
     // shadow the inner button.
-    final discoverableText = text ?? _extractSemanticsText(widget);
+    // Tooltip ancestor fallback: if still no text, use inherited tooltip.
+    final discoverableText = text ?? _extractSemanticsText(widget) ?? currentTooltip;
     final keyValue = _extractKeyValue(widget.key);
 
     if (!isInteractive && discoverableText == null && keyValue == null) {
