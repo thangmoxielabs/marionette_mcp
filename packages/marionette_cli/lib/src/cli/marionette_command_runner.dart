@@ -42,6 +42,11 @@ class MarionetteCommandRunner extends CommandRunner<int> {
             'Bypasses the instance registry. Mutually exclusive with --instance.',
       )
       ..addOption(
+        'broker',
+        help: 'Broker WebSocket URI (e.g., ws://127.0.0.1:PORT?token=XXX). '
+            'Auto-discovers if no URI provided. Mutually exclusive with --instance/--uri.',
+      )
+      ..addOption(
         'timeout',
         help: 'Connection timeout in seconds.',
         defaultsTo: '5',
