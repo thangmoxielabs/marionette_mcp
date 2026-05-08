@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
 import 'package:marionette_flutter/src/services/gesture_dispatcher.dart';
-import 'package:marionette_flutter/src/services/hit_test_utils.dart';
 import 'package:marionette_flutter/src/services/widget_finder.dart';
 import 'package:marionette_flutter/src/services/widget_matcher.dart';
 
@@ -132,8 +131,12 @@ class ScrollSimulator {
     for (var i = 0; i < maxScrollAttempts; i++) {
       // Find the target element
       final target = _widgetFinder.findElement(targetMatcher, configuration);
-      // Check if target is visible
-      if (target != null && isElementHittable(target)) {
+      // Check if target is within the scrollable's visible bounds.
+      // We use a viewport bounds check instead of hit-testing because
+      // elements inside slivers (e.g. CustomScrollView + SliverList) may
+      // fail hit tests due to sliver clipping even when visually visible.
+      if (target != null &&
+          _isElementVisibleInScrollable(target, scrollable)) {
         return;
       }
 
@@ -225,6 +228,42 @@ class ScrollSimulator {
       return null;
     }
     return state.position;
+  }
+
+  /// Whether the [target] element's center is within the visible bounds of
+  /// the [scrollable].
+  ///
+  /// Unlike [isElementHittable], this does not perform a hit test. Elements
+  /// inside slivers (e.g. `CustomScrollView` with `SliverList`) can fail hit
+  /// tests due to sliver clipping even when they are visually on screen. A
+  /// simple viewport bounds check avoids this problem.
+  bool _isElementVisibleInScrollable(Element target, Element scrollable) {
+    final targetRenderObject = target.renderObject;
+    if (targetRenderObject is! RenderBox ||
+        !targetRenderObject.hasSize ||
+        !targetRenderObject.attached) {
+      return false;
+    }
+
+    final scrollableRenderObject = scrollable.renderObject;
+    if (scrollableRenderObject is! RenderBox ||
+        !scrollableRenderObject.hasSize) {
+      return false;
+    }
+
+    try {
+      final targetCenter = targetRenderObject.localToGlobal(
+        targetRenderObject.size.center(Offset.zero),
+      );
+      final scrollableTopLeft =
+          scrollableRenderObject.localToGlobal(Offset.zero);
+      final scrollableRect =
+          scrollableTopLeft & scrollableRenderObject.size;
+
+      return scrollableRect.contains(targetCenter);
+    } catch (_) {
+      return false;
+    }
   }
 
   bool _hasScrollableRange(ScrollPosition position) {

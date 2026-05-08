@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
@@ -143,6 +144,53 @@ void main() {
         isFalse,
         reason: 'Semantics with no explicit text should not pollute the output',
       );
+    });
+  });
+
+  group('Built-in interactive widgets', () {
+    testWidgets('Cupertino widgets are recognised as interactive', (tester) async {
+      await tester.pumpWidget(CupertinoApp(
+        home: CupertinoButton(onPressed: () {}, child: const Text('Hi')),
+      ));
+      final elements = ElementTreeFinder(const MarionetteConfiguration())
+          .findInteractiveElements();
+      expect(elements.any((e) => e['type'] == 'CupertinoButton'), isTrue);
+    });
+
+    testWidgets('Material composites (Chip, ListTile) are interactive', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            const Chip(label: Text('Pinned')),
+            ListTile(title: const Text('Item'), onTap: () {}),
+          ]),
+        ),
+      ));
+      final elements = ElementTreeFinder(const MarionetteConfiguration())
+          .findInteractiveElements();
+      expect(elements.any((e) => e['type'] == 'Chip'), isTrue);
+      expect(elements.any((e) => e['type'] == 'ListTile'), isTrue);
+    });
+  });
+
+  group('Ref assignment', () {
+    testWidgets('snapshot assigns sequential refs and parentRef', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            ElevatedButton(onPressed: () {}, child: const Text('A')),
+            ElevatedButton(onPressed: () {}, child: const Text('B')),
+          ]),
+        ),
+      ));
+      final elements = ElementTreeFinder(const MarionetteConfiguration())
+          .findInteractiveElements();
+      final refs = elements.map((e) => e['ref']).toList();
+      expect(refs.first, '@1');
+      expect(refs.length >= 2, isTrue);
+      for (final e in elements) {
+        expect(e.containsKey('ref'), isTrue);
+      }
     });
   });
 }

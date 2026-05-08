@@ -21,15 +21,47 @@ void registerInspectionTools(
         readOnlyHint: true,
         idempotentHint: true,
       ),
-      inputSchema: const ToolInputSchema(properties: {}),
+      inputSchema: ToolInputSchema(
+        properties: {
+          'compact': JsonSchema.boolean(
+            description: 'Strip debugFillProperties bulk; keep only core keys.',
+          ),
+          'prune': JsonSchema.boolean(
+            description: 'Skip Offstage, non-current-route, and zero-size elements.',
+          ),
+          'limit': JsonSchema.number(
+            description: 'Cap on number of entries returned.',
+          ),
+          'viewportOnly': JsonSchema.boolean(
+            description: 'Only return elements intersecting the screen viewport.',
+          ),
+          'scope': JsonSchema.string(
+            description: 'Ref (@N) or selector (key:foo, text:Bar) to root snapshot at a subtree.',
+          ),
+        },
+      ),
       callback: (args, extra) async {
         logger.info('Getting interactive elements');
         return runTool(logger, 'get interactive elements', () async {
-          final response = await connector.getInteractiveElements();
+          final params = <String, dynamic>{};
+          if (args['compact'] == true) params['compact'] = 'true';
+          if (args['prune'] == true) params['prune'] = 'true';
+          if (args['limit'] != null) params['limit'] = args['limit'].toString();
+          if (args['viewportOnly'] == true) params['viewportOnly'] = 'true';
+          if (args['scope'] != null) params['scope'] = args['scope'].toString();
+
+          final response = await connector.getInteractiveElements(params: params);
           final elements = response['elements'] as List<dynamic>;
+          final truncated = response['truncated'] as bool?;
+          final screenName = response['screenName'] as String?;
+          final routeName = response['routeName'] as String?;
 
           final buffer = StringBuffer()
-            ..writeln('Found ${elements.length} interactive element(s):\n');
+            ..writeln('Found ${elements.length} interactive element(s):');
+          if (truncated == true) buffer.writeln('(truncated)');
+          if (screenName != null) buffer.writeln('Screen: $screenName');
+          if (routeName != null) buffer.writeln('Route: $routeName');
+          buffer.writeln();
 
           for (final element in elements) {
             buffer.writeln(formatElement(element as Map<String, dynamic>));

@@ -17,7 +17,9 @@ class LongPressCommand extends InstanceCommand {
         'duration',
         help: 'Hold duration in milliseconds.',
         defaultsTo: '600',
-      );
+      )
+      ..addOption('ref', help: 'Reference @N from a prior get-interactive-elements')
+      ..addFlag('ensure-visible', defaultsTo: true, negatable: true, help: 'Auto-scroll element into view');
   }
 
   final InstanceRegistry _registry;
@@ -41,6 +43,10 @@ class LongPressCommand extends InstanceCommand {
       x: _parseNum(argResults?['x'] as String?),
       y: _parseNum(argResults?['y'] as String?),
     );
+    final ref = argResults?['ref'] as String?;
+    if (ref != null) matcher['ref'] = ref;
+    final ensureVisible = argResults!['ensure-visible'] as bool;
+    if (!ensureVisible) matcher['ensureVisible'] = 'false';
 
     if (matcher.isEmpty) {
       usageException(

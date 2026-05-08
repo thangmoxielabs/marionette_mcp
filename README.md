@@ -473,6 +473,50 @@ Once connected, the AI agent has access to these tools:
 | `take_screenshots`         | Captures screenshots of all active views and returns them as base64 images.                                               |
 | `hot_reload`               | Performs a hot reload of the Flutter app, applying code changes without losing state.                                     |
 
+## Element Refs & Action Chaining
+
+Every `get_interactive_elements` response assigns a sequential `ref` (`@1`, `@2`, …) to each element. These refs are stable **within a single snapshot** and let agents chain actions without re-finding widgets by key or text.
+
+### Using refs (MCP)
+
+```
+get_interactive_elements  →  tap(ref: "@3")  →  enter_text(ref: "@7", input: "hello")
+```
+
+All action tools accept `ref` as an alternative to `key`/`text`/`type`. By default, ref-based actions will auto-scroll the element into view if it is offscreen. Opt out with `ensureVisible: false`.
+
+### Using refs (CLI)
+
+```bash
+marionette -i my-app get-interactive-elements
+marionette -i my-app tap --ref @3
+marionette -i my-app enter-text --ref @7 --input "hello"
+marionette -i my-app tap --ref @10 --no-ensure-visible
+```
+
+### Ref error codes
+
+When a ref-based action fails, the response includes a structured error code:
+
+| Code | Meaning |
+|------|---------|
+| `ref-unknown` | The ref was never assigned (no prior snapshot, or ref out of range). |
+| `ref-stale` | The element identity no longer matches (the tree changed since the snapshot). |
+| `ref-ambiguous` | Multiple elements share the same identity hash. |
+| `ref-unreachable` | The element exists but cannot be made hittable (covered, animating, or `ensureVisible: false`). |
+
+### Snapshot options
+
+`get_interactive_elements` supports optional params to reduce output size:
+
+| Param | Description |
+|-------|-------------|
+| `compact` | Minimal output (ref, type, text, key only). |
+| `prune` | Remove layout-only ancestors. |
+| `limit` | Max elements to return. |
+| `viewportOnly` | Only elements currently visible on screen. |
+| `scope` | Root the snapshot at a subtree (`@N` or selector). |
+
 ## Example Scenarios
 
 Marionette MCP shines when used by coding agents to verify their work or explore the app. Here are some real-world scenarios:

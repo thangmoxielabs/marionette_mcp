@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:logging/logging.dart' as logging;
 import 'package:vm_service/vm_service.dart';
@@ -186,7 +187,7 @@ class VmServiceConnector {
       throw VmServiceExtensionException(
         'Extension $extensionName failed',
         errorCode: e.code,
-        error: e.message,
+        error: extractErrorDetail(e),
       );
     } catch (err) {
       _logger.severe('Error calling extension $extensionName', err);
@@ -248,8 +249,8 @@ class VmServiceConnector {
   /// Gets the list of interactive elements in the widget tree.
   ///
   /// Throws [NotConnectedException] if not connected.
-  Future<Map<String, dynamic>> getInteractiveElements() {
-    return _callExtension('marionette.interactiveElements', {});
+  Future<Map<String, dynamic>> getInteractiveElements({Map<String, dynamic> params = const {}}) {
+    return _callExtension('marionette.interactiveElements', params);
   }
 
   /// Taps an element matching the given criteria.
@@ -478,4 +479,33 @@ class VmServiceConnector {
       'Make sure the Flutter app has marionette_flutter initialized.',
     );
   }
+}
+
+/// Extracts a human-readable error detail from an [RPCError].
+///
+/// The Flutter-side extension handler encodes errors as a JSON string
+/// containing `exception`, `stack`, and `method` keys. This function
+/// attempts to decode that JSON and return the `exception` value.
+/// Falls back to [RPCError.details], then [RPCError.message].
+String extractErrorDetail(RPCError e) {
+  // Try to parse the message as JSON (Flutter extension error format).
+  try {
+    final decoded = json.decode(e.message);
+    if (decoded is Map<String, dynamic>) {
+      final exception = decoded['exception'];
+      if (exception is String && exception.isNotEmpty) {
+        return exception;
+      }
+    }
+  } catch (_) {
+    // Not JSON — fall through.
+  }
+
+  // Try the data.details field.
+  final details = e.details;
+  if (details != null && details.isNotEmpty) {
+    return details;
+  }
+
+  return e.message;
 }

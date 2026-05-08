@@ -19,7 +19,9 @@ class EnterTextCommand extends InstanceCommand {
         'input',
         help: 'Text to enter into the field.',
         mandatory: true,
-      );
+      )
+      ..addOption('ref', help: 'Reference @N from a prior get-interactive-elements')
+      ..addFlag('ensure-visible', defaultsTo: true, negatable: true, help: 'Auto-scroll element into view');
   }
 
   final InstanceRegistry _registry;
@@ -42,6 +44,10 @@ class EnterTextCommand extends InstanceCommand {
       text: argResults?['text'] as String?,
       focused: focused,
     );
+    final ref = argResults?['ref'] as String?;
+    if (ref != null) matcher['ref'] = ref;
+    final ensureVisible = argResults!['ensure-visible'] as bool;
+    if (!ensureVisible) matcher['ensureVisible'] = 'false';
 
     if (matcher.isEmpty) {
       usageException(

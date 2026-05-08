@@ -2,6 +2,30 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:marionette_flutter/src/binding/marionette_configuration.dart';
 import 'package:marionette_flutter/src/services/hit_test_utils.dart';
+import 'package:marionette_flutter/src/services/snapshot_options.dart';
+import 'package:marionette_flutter/src/services/snapshot_session.dart';
+import 'package:marionette_flutter/src/services/stable_identity.dart';
+import 'package:marionette_flutter/src/services/widget_matcher.dart';
+
+/// Result of a snapshot with metadata.
+class SnapshotResult {
+  SnapshotResult({
+    required this.elements,
+    this.truncated = false,
+    this.screenName,
+    this.routeName,
+  });
+  final List<Map<String, dynamic>> elements;
+  final bool truncated;
+  final String? screenName;
+  final String? routeName;
+}
+
+class _VisitMetaResult {
+  _VisitMetaResult({this.screenName, this.routeName});
+  final String? screenName;
+  final String? routeName;
+}
 
 /// Finds and extracts interactive elements from the Flutter widget tree.
 class ElementTreeFinder {
@@ -10,35 +34,214 @@ class ElementTreeFinder {
   final MarionetteConfiguration configuration;
 
   /// Returns a list of interactive elements from the current widget tree.
-  List<Map<String, dynamic>> findInteractiveElements() {
-    final elements = <Map<String, dynamic>>[];
-    final rootElement = WidgetsBinding.instance.rootElement;
-
-    if (rootElement != null) {
-      _visitElement(rootElement, elements);
-    }
-
-    return elements;
+  List<Map<String, dynamic>> findInteractiveElements({
+    SnapshotOptions options = const SnapshotOptions(),
+  }) {
+    return findInteractiveElementsWithMeta(options: options).elements;
   }
 
-  void _visitElement(Element element, List<Map<String, dynamic>> result) {
+  /// Returns a [SnapshotResult] with elements and metadata (truncated, screenName, routeName).
+  SnapshotResult findInteractiveElementsWithMeta({
+    SnapshotOptions options = const SnapshotOptions(),
+  }) {
+    // Resolve scope BEFORE beginSnapshot so we can look up refs from prior snapshot
+    Element? scopedRoot = WidgetsBinding.instance.rootElement;
+    if (options.scope != null && scopedRoot != null) {
+      scopedRoot = _resolveScope(options.scope!, scopedRoot);
+      if (scopedRoot == null) {
+        return SnapshotResult(elements: [], truncated: false);
+      }
+    }
+
+    SnapshotSession.instance.beginSnapshot();
+    final elements = <Map<String, dynamic>>[];
+
+    String? screenName;
+    String? routeName;
+
+    if (scopedRoot != null) {
+      final result = _visitElementWithMeta(
+        scopedRoot,
+        elements,
+        options: options,
+        screenName: screenName,
+        routeName: routeName,
+      );
+      screenName = result.screenName;
+      routeName = result.routeName;
+    }
+
+    final truncated = options.limit != null && elements.length == options.limit!;
+
+    return SnapshotResult(
+      elements: elements,
+      truncated: truncated,
+      screenName: screenName,
+      routeName: routeName,
+    );
+  }
+
+  /// Resolves a scope string to an Element.
+  /// - If scope looks like "@N", looks up identity via session and finds matching element.
+  /// - If scope is a selector like "key:foo" or "text:Bar", builds a WidgetMatcher.
+  Element? _resolveScope(String scope, Element rootElement) {
+    if (scope.startsWith('@')) {
+      // Ref-based scope: look up identity in session
+      final identity = SnapshotSession.instance.lookup(scope);
+      if (identity == null) return null;
+      return _findElementByIdentity(rootElement, identity);
+    } else {
+      // Selector-based scope: build a WidgetMatcher
+      final matcher = _buildScopeMatcher(scope);
+      if (matcher == null) return null;
+      return _findElementByMatcher(rootElement, matcher);
+    }
+  }
+
+  /// Finds an element whose identity matches the stored [identity].
+  Element? _findElementByIdentity(Element root, StableIdentity identity) {
+    Element? found;
+    void visitor(Element element) {
+      if (found != null) return;
+      final widget = element.widget;
+      final text = configuration.extractTextFromWidget(element);
+      final candidate = buildIdentityFor(element, widget, text, 0);
+      if (identity.matchesIdentity(candidate)) {
+        found = element;
+        return;
+      }
+      element.visitChildren(visitor);
+    }
+    visitor(root);
+    return found;
+  }
+
+  /// Builds a WidgetMatcher from a selector string like "key:foo" or "text:Bar".
+  WidgetMatcher? _buildScopeMatcher(String scope) {
+    if (scope.startsWith('key:')) {
+      return KeyMatcher(scope.substring(4));
+    } else if (scope.startsWith('text:')) {
+      return TextMatcher(scope.substring(5));
+    }
+    return null;
+  }
+
+  /// Finds an element matching the given [matcher].
+  Element? _findElementByMatcher(Element root, WidgetMatcher matcher) {
+    Element? found;
+    void visitor(Element element) {
+      if (found != null) return;
+      if (matcher.matches(element, configuration)) {
+        found = element;
+        return;
+      }
+      element.visitChildren(visitor);
+    }
+    visitor(root);
+    return found;
+  }
+
+  _VisitMetaResult _visitElementWithMeta(
+    Element element,
+    List<Map<String, dynamic>> result, {
+    SnapshotOptions options = const SnapshotOptions(),
+    Map<String, int>? siblingCounters,
+    String? parentRef,
+    String? screenName,
+    String? routeName,
+    String? currentTooltip,
+  }) {
     final widget = element.widget;
-    final elementData = _extractElementData(element, widget);
+
+    if (options.prune && widget is Offstage && widget.offstage) {
+      return _VisitMetaResult(screenName: screenName, routeName: routeName);
+    }
+
+    if (options.limit != null && result.length >= options.limit!) {
+      return _VisitMetaResult(screenName: screenName, routeName: routeName);
+    }
+
+    final myType = widget.runtimeType.toString();
+    final myIndex = (siblingCounters ?? const <String, int>{})[myType] ?? 0;
+    final ownCounters = <String, int>{...?siblingCounters};
+    ownCounters[myType] = myIndex + 1;
+
+    // Track Tooltip ancestor
+    var effectiveTooltip = currentTooltip;
+    if (widget is Tooltip && widget.message != null) {
+      effectiveTooltip = widget.message;
+    }
+
+    if (widget is Scaffold) {
+      screenName = _extractScreenName(widget);
+    }
+
+    // Capture route name from current ModalRoute
+    if (routeName == null) {
+      try {
+        final route = ModalRoute.of(element);
+        if (route != null && route.isCurrent) {
+          routeName = route.settings.name;
+        }
+      } catch (_) {
+        // Ignore if we can't get route
+      }
+    }
+
+    final elementData = _extractElementData(
+      element,
+      widget,
+      options: options,
+      siblingIndex: myIndex,
+      currentTooltip: effectiveTooltip,
+    );
 
     if (elementData != null) {
+      if (parentRef != null) elementData['parentRef'] = parentRef;
       result.add(elementData);
     }
 
     if (configuration.shouldStopAtType(widget.runtimeType)) {
-      return;
+      return _VisitMetaResult(screenName: screenName, routeName: routeName);
     }
 
+    final myRef = elementData?['ref'] as String?;
     element.visitChildren((child) {
-      _visitElement(child, result);
+      final r = _visitElementWithMeta(
+        child,
+        result,
+        options: options,
+        siblingCounters: ownCounters,
+        parentRef: myRef ?? parentRef,
+        screenName: screenName,
+        routeName: routeName,
+        currentTooltip: effectiveTooltip,
+      );
+      screenName = r.screenName;
+      routeName = r.routeName;
     });
+
+    return _VisitMetaResult(screenName: screenName, routeName: routeName);
   }
 
-  Map<String, dynamic>? _extractElementData(Element element, Widget widget) {
+  String? _extractScreenName(Scaffold scaffold) {
+    final appBar = scaffold.appBar;
+    if (appBar is PreferredSizeWidget && appBar is AppBar) {
+      final title = appBar.title;
+      if (title is Text) {
+        return title.data;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _extractElementData(
+    Element element,
+    Widget widget, {
+    SnapshotOptions options = const SnapshotOptions(),
+    int siblingIndex = 0,
+    String? currentTooltip,
+  }) {
     // Only process elements with render objects
     final renderObject = element.renderObject;
     if (renderObject == null) {
@@ -57,7 +260,8 @@ class ElementTreeFinder {
     // TextMatcher (tap/scroll_to/enter_text) is not affected — otherwise a
     // Semantics(label: 'Save', child: ElevatedButton(...)) wrapper would
     // shadow the inner button.
-    final discoverableText = text ?? _extractSemanticsText(widget);
+    // Tooltip ancestor fallback: if still no text, use inherited tooltip.
+    final discoverableText = text ?? _extractSemanticsText(widget) ?? currentTooltip;
     final keyValue = _extractKeyValue(widget.key);
 
     if (!isInteractive && discoverableText == null && keyValue == null) {
@@ -81,6 +285,11 @@ class ElementTreeFinder {
             (p) => MapEntry(p.name!, p.value.toString()),
           ),
     );
+
+    final customProperties = configuration.extractProperties?.call(element);
+    if (customProperties != null) {
+      data.addAll(customProperties);
+    }
 
     data['type'] = widget.runtimeType.toString();
 
@@ -111,7 +320,43 @@ class ElementTreeFinder {
     // Check visibility
     data['visible'] = _isElementVisible(renderObject);
 
+    if (options.viewportOnly && renderObject is RenderBox && renderObject.hasSize) {
+      try {
+        final offset = renderObject.localToGlobal(Offset.zero);
+        final size = renderObject.size;
+        final screenSize = WidgetsBinding
+                .instance.platformDispatcher.views.first.physicalSize /
+            WidgetsBinding
+                .instance.platformDispatcher.views.first.devicePixelRatio;
+
+        final intersects = offset.dx + size.width >= 0 &&
+            offset.dy + size.height >= 0 &&
+            offset.dx < screenSize.width &&
+            offset.dy < screenSize.height;
+
+        if (!intersects) {
+          return null;
+        }
+      } catch (_) {
+        // If we can't compute intersection, include the element
+      }
+    }
+
+    if (options.compact) {
+      const compactCoreKeys = {'type', 'text', 'key', 'bounds', 'visible', 'ref', 'parentRef'};
+      const compactAllowList = {'enabled', 'value', 'selected', 'checked'};
+      data.removeWhere((k, _) => !compactCoreKeys.contains(k) && !compactAllowList.contains(k));
+    }
+
+    final identity = _buildIdentity(element, widget, discoverableText, siblingIndex);
+    final ref = SnapshotSession.instance.assign(identity);
+    data['ref'] = ref;
+
     return data;
+  }
+
+  StableIdentity _buildIdentity(Element element, Widget widget, String? text, int siblingIndex) {
+    return buildIdentityFor(element, widget, text, siblingIndex);
   }
 
   String? _extractKeyValue(Key? key) {

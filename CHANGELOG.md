@@ -1,5 +1,12 @@
 # Unreleased
 
+- **Stable refs (`@N`)**: Every `get_interactive_elements` call assigns sequential refs to elements. Actions can target elements by ref via `--ref @N` (CLI) or `ref: '@N'` (MCP).
+- **Snapshot options**: `compact`, `prune`, `limit`, `viewportOnly`, and `scope` params on `get_interactive_elements` for tighter output.
+- **screenName & routeName**: Snapshot result includes the current screen name (from AppBar title) and route name.
+- **Tooltip-as-label fallback**: Icon-only buttons inside `Tooltip` inherit the tooltip message as their text.
+- **Auto-ensureVisible**: Ref-based actions auto-scroll elements into view. Opt out with `ensureVisible: false`.
+- **Ref error codes**: `ref-unknown`, `ref-stale`, `ref-ambiguous` for precise debugging.
+- **Expanded built-in widgets**: Cupertino and Material composite widgets now recognised as interactive.
 - Surface `Semantics(label:)` and `Semantics(value:)` in `get_interactive_elements`. Widgets that render via inline-span trees (`Text.rich`, custom-painted text, etc.) where `toPlainText()` loses structure can now be made fully readable by agents through an explicit accessibility annotation, without altering the rendered widget.
 
 # 0.5.0

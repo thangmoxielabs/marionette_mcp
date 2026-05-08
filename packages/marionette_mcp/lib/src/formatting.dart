@@ -22,6 +22,9 @@ Map<String, dynamic> buildMatcher(Map<String, dynamic> args) {
   if (args.containsKey('type')) {
     matcher['type'] = args['type'];
   }
+  if (args.containsKey('ref')) {
+    matcher['ref'] = args['ref'];
+  }
   if (args.containsKey('x')) {
     matcher['x'] = args['x'];
   }

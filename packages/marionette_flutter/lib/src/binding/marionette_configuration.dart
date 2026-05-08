@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:marionette_flutter/src/services/log_collector.dart';
 
@@ -19,6 +20,7 @@ class MarionetteConfiguration {
     this.isInteractiveWidget,
     this.shouldStopTraversal,
     this.extractText,
+    this.extractProperties,
     this.maxScreenshotSize = const Size(2000, 2000),
     this.logCollector,
   });
@@ -63,6 +65,32 @@ class MarionetteConfiguration {
   /// )
   /// ```
   final String? Function(Element element)? extractText;
+
+  /// Extracts custom properties from an app-specific widget instance.
+  ///
+  /// Use this to expose widget state that is not available via
+  /// `debugFillProperties`. The returned map is merged into the element data
+  /// returned by `get_interactive_elements`, so the AI agent can see it.
+  ///
+  /// This callback is called after the built-in `debugFillProperties`
+  /// extraction. Returned keys override built-in properties with the same name.
+  ///
+  /// Example:
+  /// ```dart
+  /// MarionetteConfiguration(
+  ///   extractProperties: (element) {
+  ///     final widget = element.widget;
+  ///     if (widget is ShadButton) {
+  ///       return {
+  ///         'enabled': widget.enabled,
+  ///         'variant': widget.variant.name,
+  ///       };
+  ///     }
+  ///     return null;
+  ///   },
+  /// )
+  /// ```
+  final Map<String, Object>? Function(Element element)? extractProperties;
 
   /// Maximum size for screenshots in physical pixels.
   ///
@@ -134,28 +162,31 @@ class MarionetteConfiguration {
   // Built-in Flutter widget support
 
   static bool _isBuiltInInteractiveWidget(Type type) {
-    return type == Checkbox ||
-        type == CheckboxListTile ||
-        type == DropdownButton ||
-        type == DropdownButtonFormField ||
-        type == ElevatedButton ||
-        type == FilledButton ||
-        type == FloatingActionButton ||
-        type == GestureDetector ||
-        type == IconButton ||
-        type == InkWell ||
-        type == OutlinedButton ||
-        type == PopupMenuButton ||
-        type == Radio ||
-        type == RadioListTile ||
-        type == Slider ||
-        type == Switch ||
-        type == SwitchListTile ||
-        type == TextButton ||
-        type == TextField ||
-        type == TextFormField ||
-        type == ButtonStyleButton;
+    return _materialInteractive.contains(type) ||
+        _cupertinoInteractive.contains(type) ||
+        _materialComposites.contains(type);
   }
+
+  static const Set<Type> _materialInteractive = {
+    Checkbox, CheckboxListTile, DropdownButton, DropdownButtonFormField,
+    ElevatedButton, FilledButton, FloatingActionButton, GestureDetector,
+    IconButton, InkWell, OutlinedButton, PopupMenuButton, Radio, RadioListTile,
+    Slider, Switch, SwitchListTile, TextButton, TextField, TextFormField,
+    ButtonStyleButton,
+  };
+
+  static const Set<Type> _cupertinoInteractive = {
+    CupertinoButton, CupertinoSwitch, CupertinoTextField, CupertinoSlider,
+    CupertinoListTile, CupertinoCheckbox, CupertinoRadio,
+    CupertinoSegmentedControl, CupertinoSlidingSegmentedControl,
+  };
+
+  static const Set<Type> _materialComposites = {
+    Chip, ActionChip, FilterChip, ChoiceChip, InputChip, MenuItemButton,
+    SubmenuButton, SegmentedButton, ListTile, ExpansionTile, Tab, BackButton,
+    CloseButton, RangeSlider, InkResponse, NavigationBar, BottomNavigationBar,
+    NavigationRail, NavigationDestination, DropdownMenu, ToggleButtons,
+  };
 
   static bool _isBuiltInStopWidget(Type type) {
     return (type != GestureDetector && type != InkWell) &&

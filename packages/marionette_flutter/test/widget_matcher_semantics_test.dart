@@ -26,14 +26,15 @@ void main() {
         ),
       );
 
-      final element = WidgetFinder().findHittableElement(
+      final result = WidgetFinder().findHittableElement(
         const TextMatcher('submit'),
         _configuration,
       );
 
-      expect(element, isNotNull);
+      expect(result, isA<FoundElement>());
+      final element = (result as FoundElement).element;
       expect(
-        element!.widget.runtimeType,
+        element.widget.runtimeType,
         Text,
         reason: 'TextMatcher must resolve to the inner Text widget, not the '
             'Semantics wrapper — otherwise tap/scroll_to/enter_text are '
@@ -58,14 +59,14 @@ void main() {
         ),
       );
 
-      final element = WidgetFinder().findHittableElement(
+      final result = WidgetFinder().findHittableElement(
         const TextMatcher('progress label'),
         _configuration,
       );
 
       expect(
-        element,
-        isNull,
+        result,
+        isA<FindError>(),
         reason: 'Semantics annotations are surfaced for discovery only — '
             'they must not be matchable, otherwise tap would target the '
             'Semantics wrapper instead of the underlying widget',
@@ -88,14 +89,14 @@ void main() {
         ),
       );
 
-      final element = WidgetFinder().findHittableElement(
+      final result = WidgetFinder().findHittableElement(
         const TextMatcher('Volume: 70%'),
         _configuration,
       );
 
       expect(
-        element,
-        isNull,
+        result,
+        isA<FindError>(),
         reason: 'The combined "label: value" string is a discovery-only '
             'projection — TextMatcher must not see it, otherwise an agent '
             'reading get_interactive_elements could tap on a Semantics '

@@ -23,13 +23,14 @@ void main() {
       );
 
       final finder = WidgetFinder();
-      final element = finder.findHittableElement(
+      final result = finder.findHittableElement(
         const KeyMatcher('btn'),
         _configuration,
       );
 
-      expect(element, isNotNull);
-      expect(element!.widget.key, const ValueKey('btn'));
+      expect(result, isA<FoundElement>());
+      final element = (result as FoundElement).element;
+      expect(element.widget.key, const ValueKey('btn'));
     });
 
     testWidgets('rejects element behind IgnorePointer', (tester) async {
@@ -55,7 +56,7 @@ void main() {
         const KeyMatcher('ignored_btn'),
         _configuration,
       );
-      expect(hittable, isNull,
+      expect(hittable, isA<FindError>(),
           reason: 'should not find element behind IgnorePointer');
 
       final plain = finder.findElement(
@@ -88,7 +89,7 @@ void main() {
         const KeyMatcher('absorbed_btn'),
         _configuration,
       );
-      expect(hittable, isNull,
+      expect(hittable, isA<FindError>(),
           reason: 'should not find element behind AbsorbPointer');
 
       final plain = finder.findElement(
@@ -129,7 +130,7 @@ void main() {
         const KeyMatcher('behind_modal'),
         _configuration,
       );
-      expect(hittable, isNull,
+      expect(hittable, isA<FindError>(),
           reason: 'should not find element behind modal barrier');
 
       final plain = finder.findElement(
@@ -177,12 +178,13 @@ void main() {
         await tester.pumpAndSettle();
 
         final finder = WidgetFinder();
-        final hittable = finder.findHittableElement(
+        final result = finder.findHittableElement(
           const KeyMatcher('dup_btn'),
           _configuration,
         );
 
-        expect(hittable, isNotNull);
+        expect(result, isA<FoundElement>());
+        final hittable = (result as FoundElement).element;
 
         final text = finder.findElementFrom(
           const TextMatcher('Dialog button'),
@@ -234,14 +236,14 @@ void main() {
         await tester.pumpAndSettle();
 
         final finder = WidgetFinder();
-        final element = finder.findHittableElement(
+        final result = finder.findHittableElement(
           const KeyMatcher('blocked_btn'),
           _configuration,
         );
 
         expect(
-          element,
-          isNull,
+          result,
+          isA<FindError>(),
           reason: 'tap tool should not silently target a blocked element',
         );
       },

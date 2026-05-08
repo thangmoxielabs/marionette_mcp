@@ -57,16 +57,16 @@ class TextInputSimulator {
     WidgetMatcher matcher,
     MarionetteConfiguration configuration,
   ) {
-    final element = _widgetFinder.findHittableElement(matcher, configuration);
+    final result = _widgetFinder.findHittableElement(matcher, configuration);
 
-    if (element == null) {
+    if (result is! FoundElement) {
       throw Exception('Element matching ${matcher.toJson()} not found');
     }
 
     // Try to find the EditableText widget within the matched element's subtree.
     final editableTextElement = _widgetFinder.findElementFrom(
       const TypeMatcher(EditableText),
-      element,
+      result.element,
       configuration,
     );
 
