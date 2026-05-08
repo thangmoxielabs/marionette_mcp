@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' as io;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -8,15 +9,22 @@ import 'package:path/path.dart' as p;
 ///
 /// The handle file contains the broker's port and auth token.
 class BrokerHandle {
-  BrokerHandle({required this.port, required this.token, this.pid});
+  BrokerHandle({
+    required this.port,
+    required this.token,
+    int? pid,
+    DateTime? createdAt,
+  })  : pid = pid ?? io.pid,
+        createdAt = createdAt ?? DateTime.now();
 
   final int port;
   final String token;
-  final int? pid;
+  final int pid;
+  final DateTime createdAt;
 
   String get path => p.join(
         Platform.environment['TMPDIR'] ?? '/tmp',
-        'marionette-broker-${pid ?? _currentPid()}.json',
+        'marionette-broker-$pid.json',
       );
 
   Future<void> write() async {
@@ -25,8 +33,8 @@ class BrokerHandle {
       jsonEncode({
         'port': port,
         'token': token,
-        'pid': pid ?? _currentPid(),
-        'createdAt': DateTime.now().toIso8601String(),
+        'pid': pid,
+        'createdAt': createdAt.toIso8601String(),
       }),
     );
   }
@@ -42,11 +50,15 @@ class BrokerHandle {
     final file = File(path);
     if (!await file.exists()) return null;
     try {
-      final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final data =
+          jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final createdAtRaw = data['createdAt'] as String?;
       return BrokerHandle(
         port: data['port'] as int,
         token: data['token'] as String,
         pid: data['pid'] as int?,
+        createdAt:
+            createdAtRaw != null ? DateTime.tryParse(createdAtRaw) : null,
       );
     } catch (_) {
       return null;
@@ -55,10 +67,5 @@ class BrokerHandle {
 
   static String directoryPath() {
     return Platform.environment['TMPDIR'] ?? '/tmp';
-  }
-
-  static int _currentPid() {
-    // Use a unique identifier since Dart doesn't expose process PID directly
-    return DateTime.now().millisecondsSinceEpoch;
   }
 }

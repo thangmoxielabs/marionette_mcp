@@ -11,42 +11,12 @@ class BrokerDiscovery {
   ///
   /// Scans `${TMPDIR}/marionette-broker-*.json`, parses each handle,
   /// verifies the broker is still reachable via TCP, and returns the most
-  /// recently created one. Stale handles (unreachable or >5 min old) are
-  /// garbage-collected.
+  /// recently created one. Unreachable handles are garbage-collected.
   static Future<BrokerHandle?> findRunning() async {
-    final dir = Directory(BrokerHandle.directoryPath());
-    if (!await dir.exists()) return null;
-
-    final handles = <_Candidate>[];
-
-    await for (final entity in dir.list()) {
-      if (entity is! File) continue;
-      final filename = p.basename(entity.path);
-      if (!filename.startsWith('marionette-broker-') ||
-          !filename.endsWith('.json')) {
-        continue;
-      }
-
-      final handle = await BrokerHandle.read(entity.path);
-      if (handle == null) continue;
-
-      final isReachable = await _isReachable(handle.port);
-      if (!isReachable) {
-        // GC stale handle
-        try {
-          await entity.delete();
-        } catch (_) {}
-        continue;
-      }
-
-      handles.add(_Candidate(handle, entity.path));
-    }
-
+    final handles = await listRunning();
     if (handles.isEmpty) return null;
-
-    // Return the most recently created reachable broker
     handles.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return handles.first.handle;
+    return handles.first;
   }
 
   /// Lists all reachable brokers (for status/debugging).
@@ -70,7 +40,6 @@ class BrokerDiscovery {
       if (await _isReachable(handle.port)) {
         handles.add(handle);
       } else {
-        // GC stale handle
         try {
           await entity.delete();
         } catch (_) {}
@@ -92,15 +61,5 @@ class BrokerDiscovery {
     } catch (_) {
       return false;
     }
-  }
-}
-
-class _Candidate {
-  _Candidate(this.handle, this.path);
-  final BrokerHandle handle;
-  final String path;
-  DateTime get createdAt {
-    // Parse from handle path or default to epoch
-    return DateTime.now();
   }
 }

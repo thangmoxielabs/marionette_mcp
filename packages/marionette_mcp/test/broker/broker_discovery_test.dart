@@ -75,6 +75,50 @@ void main() {
       }
     });
 
+    test('findRunning returns the most recently created reachable broker',
+        () async {
+      final older = BrokerServer(token: 'older');
+      final olderPort = await older.start();
+      final newer = BrokerServer(token: 'newer');
+      final newerPort = await newer.start();
+
+      final olderPath = p.join(
+        Platform.environment['TMPDIR'] ?? '/tmp',
+        'marionette-broker-orderingA.json',
+      );
+      final newerPath = p.join(
+        Platform.environment['TMPDIR'] ?? '/tmp',
+        'marionette-broker-orderingB.json',
+      );
+
+      final olderTs = DateTime.now().subtract(const Duration(minutes: 5));
+      final newerTs = DateTime.now();
+
+      await File(olderPath).writeAsString(jsonEncode({
+        'port': olderPort,
+        'token': 'older',
+        'pid': 11111,
+        'createdAt': olderTs.toIso8601String(),
+      }));
+      await File(newerPath).writeAsString(jsonEncode({
+        'port': newerPort,
+        'token': 'newer',
+        'pid': 22222,
+        'createdAt': newerTs.toIso8601String(),
+      }));
+
+      try {
+        final result = await BrokerDiscovery.findRunning();
+        expect(result, isNotNull);
+        expect(result!.token, 'newer');
+      } finally {
+        try { await File(olderPath).delete(); } catch (_) {}
+        try { await File(newerPath).delete(); } catch (_) {}
+        await older.stop();
+        await newer.stop();
+      }
+    });
+
     test('listRunning returns all reachable brokers', () async {
       final server1 = BrokerServer(token: 'token1');
       final port1 = await server1.start();
