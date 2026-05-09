@@ -168,6 +168,12 @@ class MarionetteBinding extends WidgetsFlutterBinding {
     await _brokerTransport!.start();
   }
 
+  /// Disconnects the active broker transport, if any.
+  Future<void> disconnectBroker() async {
+    await _brokerTransport?.stop();
+    _brokerTransport = null;
+  }
+
   /// Returns the active broker transport, or null if not connected.
   BrokerTransport? get brokerTransport => _brokerTransport;
 
